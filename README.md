@@ -17,7 +17,8 @@ Feita para o **COSMIC** (Pop!_OS 24.04), mas deve funcionar em qualquer composit
   - capa, título, artista e uma barra de progresso clicável e arrastável;
   - botões de anterior, play/pause e próxima;
   - o equalizador e a barra de progresso usam a cor predominante da capa;
-  - a ilha abre sozinha por alguns segundos quando a faixa muda.
+  - a ilha abre sozinha por alguns segundos quando a faixa muda;
+  - opcional: **playlist** (ou álbum, artista, Músicas Curtidas) e **dispositivo** onde está tocando (celular, caixa de som, TV…). Quando toca em outro aparelho, aparece um ícone dele na pílula.
 - **Animações**: a pílula muda de tamanho e de arredondamento ao expandir, e a capa e o equalizador deslizam pra dentro quando a música começa.
 - **Leve**: Python + GTK3, sem polling de metadados. O Spotify avisa por D-Bus quando algo muda.
 
@@ -70,12 +71,24 @@ Clique com o botão direito na ilha e escolha **Configurações…**, ou rode `.
 | **Relógio e clima** | 12h/24h, data na pílula, cidade (vazio = detectar pelo IP), °C ou °F, clima na pílula |
 | **Comportamento** | expandir no hover, atraso do hover, abrir quando a música muda, distância do topo, iniciar com a sessão |
 
+| **Spotify** | Client ID do seu app, conectar e desconectar a conta |
+
 As opções de linha de comando valem só para aquela execução e não alteram o arquivo:
 
 ```bash
 ./run.sh --city "Belo Horizonte"   # cidade do clima
 ./run.sh --margin 2                # distância do topo da tela, em px
 ```
+
+### Playlist e dispositivo (Spotify Web API)
+
+O MPRIS do Spotify não diz qual playlist está tocando nem em qual aparelho. Por isso essa parte usa a Web API, com um app do Spotify **seu**: o projeto não distribui um Client ID.
+
+1. Em [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard), crie um app. A conta dona precisa ser Premium.
+2. Em **Redirect URIs**, adicione `http://127.0.0.1:8974/callback` e marque **Web API**.
+3. Copie o **Client ID**, cole em *Configurações → Spotify* e clique em **Conectar**. O navegador abre para você autorizar.
+
+No modo de desenvolvimento, o Spotify permite até 5 usuários por app, adicionados em *User Management*. Playlists do próprio Spotify (Daily Mix, Descobertas da Semana) aparecem só como "Playlist", porque a API não devolve o nome delas para apps novos.
 
 ### Substituir o relógio do COSMIC
 
@@ -110,6 +123,7 @@ EOF
 | `settings.py` | janela de configurações |
 | `views.py` | conteúdo dos modos compacto e expandido |
 | `widgets.py` | capa arredondada, equalizador e barra de progresso desenhados com cairo |
+| `spotify_web.py` | Spotify Web API: login OAuth PKCE, playlist e dispositivo em reprodução |
 | `spotify.py` | cliente MPRIS (`org.mpris.MediaPlayer2.spotify`), posição interpolada e download da capa |
 | `weather.py` | localização (cidade via geocoding do Open-Meteo ou IP via ipwho.is) e previsão |
 | `style.css` | aparência |
@@ -127,11 +141,13 @@ Para depurar, rode com `ISLAND_DEBUG=1 ./run.sh` e acompanhe os eventos no termi
 
 - Para descobrir a cidade, o seu IP é enviado ao [ipwho.is](https://ipwho.is/), a não ser que você use `--city`. O resultado fica em cache por 6 horas em `~/.cache/linux-island/`.
 - As coordenadas são enviadas ao [Open-Meteo](https://open-meteo.com/) para buscar a previsão.
+- Se você conectar a Web API, o login é OAuth PKCE (sem segredo) e pede só permissão de leitura: `user-read-playback-state`, `playlist-read-private` e `playlist-read-collaborative`. O token fica em `~/.config/linux-island/spotify-token.json`, legível só pelo seu usuário. Para revogar, use **Desconectar** ou acesse [spotify.com/account/apps](https://www.spotify.com/account/apps/).
 - As capas são baixadas do CDN do Spotify e guardadas em `~/.cache/linux-island/art/`.
 
 ## Roadmap
 
 - [x] Menu de configurações (cores, temas, cidade, unidades, comportamento)
+- [x] Playlist e dispositivo em reprodução (Spotify Web API)
 - [ ] Outros players MPRIS (Firefox, VLC, mpv…)
 - [ ] Notificações na ilha
 - [ ] Volume pela rolagem do mouse

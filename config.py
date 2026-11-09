@@ -39,6 +39,9 @@ SCHEMA = {
     "city": ("", lambda v: isinstance(v, str) and len(v) <= 100),
     "units": ("celsius", _choice("celsius", "fahrenheit")),
     "show_weather": (True, _is_bool),
+    # Spotify Web API (playlist e dispositivo); vazio = desligado
+    "spotify_client_id": ("", lambda v: isinstance(v, str)
+                          and (v == "" or re.fullmatch(r"[0-9a-fA-F]{32}", v) is not None)),
     # comportamento
     "hover_expand": (True, _is_bool),
     "peek_on_track": (True, _is_bool),

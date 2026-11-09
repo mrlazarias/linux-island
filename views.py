@@ -100,7 +100,14 @@ class Compact(Gtk.Box):
         eq_box.add(self.eq)
         self.eq_rev = revealer(eq_box, Gtk.RevealerTransitionType.SLIDE_LEFT)
 
-        for w in (self.art_rev, self.clock, self.date_rev, self.w_rev, self.eq_rev):
+        self.dev_icon = icon("phone-symbolic", 13)
+        dev_box = Gtk.Box()
+        dev_box.set_margin_start(10)
+        dev_box.add(self.dev_icon)
+        self.dev_rev = revealer(dev_box, Gtk.RevealerTransitionType.SLIDE_LEFT)
+
+        for w in (self.art_rev, self.clock, self.date_rev, self.w_rev, self.dev_rev,
+                  self.eq_rev):
             self.pack_start(w, False, False, 0)
 
     def set_clock(self, now, h24=True):
@@ -117,6 +124,12 @@ class Compact(Gtk.Box):
         self.date_rev.set_reveal_child(show_date)
         self.show_weather = show_weather
         self.w_rev.set_reveal_child(show_weather and self._has_weather)
+
+    def set_remote_device(self, icon_name):
+        """icon_name=None esconde (tocando neste computador ou sem informação)."""
+        if icon_name:
+            self.dev_icon.set_from_icon_name(icon_name, Gtk.IconSize.BUTTON)
+        self.dev_rev.set_reveal_child(bool(icon_name))
 
     def set_music(self, has_track, playing):
         self.art_rev.set_reveal_child(has_track)
@@ -218,6 +231,7 @@ class Expanded(Gtk.Box):
         self.artist = label("dim", ellipsize=True)
         texts.pack_start(self.title, False, False, 0)
         texts.pack_start(self.artist, False, False, 0)
+        texts.pack_start(self._build_playback_row(), False, False, 0)
         self.eq = Equalizer(20, 18)
         head.pack_start(self.art, False, False, 0)
         head.pack_start(texts, True, True, 0)
@@ -245,6 +259,44 @@ class Expanded(Gtk.Box):
         for w in (head, bar, ctrls):
             box.pack_start(w, False, False, 0)
         return box
+
+    def _build_playback_row(self):
+        row = Gtk.Box(spacing=5)
+        row.set_margin_top(3)
+        self.ctx_box = Gtk.Box(spacing=5)
+        self.ctx_icon = icon("view-list-symbolic", 11)
+        self.ctx_label = label("dim small", ellipsize=True)
+        self.ctx_label.set_max_width_chars(26)
+        self.ctx_box.pack_start(self.ctx_icon, False, False, 0)
+        self.ctx_box.pack_start(self.ctx_label, True, True, 0)
+        self.pb_sep = label("dim small")
+        self.pb_sep.set_text("·")
+        dev = Gtk.Box(spacing=5)
+        self.pb_dev_icon = icon("computer-symbolic", 11)
+        self.pb_dev_label = label("dim small", ellipsize=True)
+        self.pb_dev_label.set_max_width_chars(18)
+        dev.pack_start(self.pb_dev_icon, False, False, 0)
+        dev.pack_start(self.pb_dev_label, True, True, 0)
+        row.pack_start(self.ctx_box, False, False, 0)
+        row.pack_start(self.pb_sep, False, False, 0)
+        row.pack_start(dev, False, False, 0)
+        self.pb_rev = revealer(row, Gtk.RevealerTransitionType.SLIDE_DOWN)
+        return self.pb_rev
+
+    def set_playback(self, pb):
+        """pb: spotify_web.Playback ou None (sem Web API ou nada tocando)."""
+        if pb is None:
+            self.pb_rev.set_reveal_child(False)
+            return
+        has_ctx = bool(pb.context_name)
+        self.ctx_box.set_visible(has_ctx)
+        self.pb_sep.set_visible(has_ctx)
+        if has_ctx:
+            self.ctx_icon.set_from_icon_name(pb.context_icon, Gtk.IconSize.BUTTON)
+            self.ctx_label.set_text(pb.context_name)
+        self.pb_dev_icon.set_from_icon_name(pb.device_icon, Gtk.IconSize.BUTTON)
+        self.pb_dev_label.set_text(pb.device)
+        self.pb_rev.set_reveal_child(True)
 
     def set_track(self, track):
         if track:

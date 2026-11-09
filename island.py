@@ -4,6 +4,7 @@
 Mostra hora, data, clima e o Spotify; expande ao passar o mouse.
 """
 import os
+import socket
 import sys
 import time
 from datetime import datetime
@@ -25,6 +26,7 @@ from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 from config import Config, accent_tuple, build_css, rgba  # noqa: E402
 from settings import Settings  # noqa: E402
 from spotify import Spotify  # noqa: E402
+from spotify_web import SpotifyWeb  # noqa: E402
 from views import Compact, Expanded  # noqa: E402
 from weather import Weather  # noqa: E402
 from widgets import accent_from_pixbuf  # noqa: E402
@@ -64,6 +66,10 @@ class Island(Gtk.Window):
                               self._on_status, self._on_art)
         self._build()
         self.weather = Weather(self._on_weather, cfg["city"], cfg["units"])
+        self.web_status = ("Conectado", True)
+        self.web = SpotifyWeb(cfg["spotify_client_id"], self._on_playback, self._on_web_status)
+        if not self.web.connected:
+            self.web_status = ("Não conectado", False)
         self._apply()
         cfg.connect(self._apply)
         self.show_all()
@@ -114,6 +120,8 @@ class Island(Gtk.Window):
             self.compact.set_visibility(cfg["show_date"], cfg["show_weather"])
         if key in ("city", "units"):
             self.weather.configure(cfg["city"], cfg["units"])
+        if key == "spotify_client_id":
+            self.web.set_client_id(cfg["spotify_client_id"])
         if key is None or key == "margin_top":
             GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, cfg["margin_top"])
         self._follow_size()
@@ -302,6 +310,7 @@ class Island(Gtk.Window):
         self.full.set_track(track)
         self.compact.set_music(track is not None, self.player.playing)
         self._follow_size()
+        self.web.kick()
         if track and prev and prev != track.title:
             self._peek()
 
@@ -309,6 +318,24 @@ class Island(Gtk.Window):
         self.compact.set_music(self.player.track is not None, playing)
         self.full.set_playing(playing)
         self._follow_size()
+        self.web.kick()
+
+    # --- Spotify Web API (playlist e dispositivo) -----------------------
+    def _on_playback(self, pb):
+        self.full.set_playback(pb)
+        remote = pb is not None and pb.is_playing and not self._is_this_computer(pb)
+        self.compact.set_remote_device(pb.device_icon if remote else None)
+        self._follow_size()
+
+    @staticmethod
+    def _is_this_computer(pb):
+        # o app de desktop se registra com o hostname como nome do dispositivo
+        return pb.device_type == "computer" and pb.device.lower() == socket.gethostname().lower()
+
+    def _on_web_status(self, text, ok):
+        self.web_status = (text, ok)
+        if self.app.settings:
+            self.app.settings.set_spotify_status(text, ok)
 
     def _on_art(self, path):
         pb = None
@@ -366,7 +393,8 @@ class App(Gtk.Application):
     def open_settings(self):
         log("open_settings", self.settings)
         if self.settings is None:
-            self.settings = Settings(self.island.cfg, self)
+            self.settings = Settings(self.island.cfg, self, self.island.web)
+            self.settings.set_spotify_status(*self.island.web_status)
             self.settings.connect("destroy", lambda *_: setattr(self, "settings", None))
         self.settings.present()
 
