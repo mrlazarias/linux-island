@@ -1,0 +1,99 @@
+window,
+window.background {
+  background-color: transparent;
+}
+
+.island {
+  background-color: #000000;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  transition: border-radius 320ms cubic-bezier(0.2, 0.9, 0.3, 1.15);
+  color: #ffffff;
+}
+
+.island.expanded {
+  border-radius: 30px;
+}
+
+.title {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.clock {
+  font-weight: 700;
+  font-size: 13px;
+  font-feature-settings: "tnum";
+}
+
+.temp {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.dim {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.small {
+  font-size: 11px;
+}
+
+.big-clock {
+  font-size: 34px;
+  font-weight: 300;
+  font-feature-settings: "tnum";
+}
+
+.big-temp {
+  font-size: 26px;
+  font-weight: 300;
+}
+
+.rain {
+  color: #6cb6ff;
+  font-size: 10px;
+}
+
+.day {
+  padding: 6px 0;
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.05);
+  margin: 0 3px;
+}
+
+separator {
+  background-color: rgba(255, 255, 255, 0.1);
+  min-height: 1px;
+}
+
+.time {
+  font-size: 10px;
+  font-feature-settings: "tnum";
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.control {
+  background: none;
+  border: none;
+  box-shadow: none;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 6px;
+  min-width: 0;
+  min-height: 0;
+  transition: background-color 150ms ease;
+}
+
+.control:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.control:active {
+  background-color: rgba(255, 255, 255, 0.22);
+}
+
+.control.main {
+  padding: 8px;
+}
