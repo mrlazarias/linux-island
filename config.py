@@ -51,6 +51,11 @@ SCHEMA = {
     "water_end_h": (22, _int_range(1, 24)),
     "water_snooze_min": (10, _int_range(1, 120)),
     "water_notify": (False, _is_bool),
+    "water_sound": (True, _is_bool),
+    "water_sound_name": ("message-new-instant", _choice(
+        "message-new-instant", "complete", "bell", "dialog-information",
+        "window-attention", "alarm-clock-elapsed")),
+    "water_sound_volume": (70, _int_range(0, 100)),
     # comportamento
     "hover_expand": (True, _is_bool),
     "peek_on_track": (True, _is_bool),

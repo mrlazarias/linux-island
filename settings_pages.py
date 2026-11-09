@@ -17,6 +17,19 @@ class SettingsPagesMixin:
         self._row(main, "Notificação do sistema", self._switch("water_notify"),
                   "Além do aviso na ilha, mostra uma notificação com Bebi e Adiar")
 
+        from water import SOUNDS, play_sound  # import local: só a aba usa
+
+        sound = self._group(page, "Aviso sonoro")
+        self._row(sound, "Tocar som no lembrete", self._switch("water_sound"))
+        self._row(sound, "Som", self._choice("water_sound_name", SOUNDS))
+        test = Gtk.Button(label="Testar")
+        test.connect("clicked", lambda *_: play_sound(self.cfg["water_sound_name"],
+                                                      self.cfg["water_sound_volume"]))
+        vol = Gtk.Box(spacing=8)
+        vol.pack_start(self._spin("water_sound_volume", 0, 100, 10), False, False, 0)
+        vol.pack_start(test, False, False, 0)
+        self._row(sound, "Volume (%)", vol)
+
         goal = self._group(page, "Meta")
         self._row(goal, "Meta diária (ml)", self._spin("water_goal_ml", 250, 8000, 250))
         self._row(goal, "Tamanho do copo (ml)", self._spin("water_cup_ml", 50, 1500, 50),

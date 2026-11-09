@@ -28,7 +28,7 @@ from settings import Settings  # noqa: E402
 from spotify import Spotify  # noqa: E402
 from spotify_web import SpotifyWeb  # noqa: E402
 from views import Compact, Expanded, label  # noqa: E402
-from water import Notifier, Water  # noqa: E402
+from water import Notifier, Water, play_sound  # noqa: E402
 from water_view import DropIcon, WaterPage  # noqa: E402
 from weather import Weather  # noqa: E402
 from widgets import accent_from_pixbuf  # noqa: E402
@@ -259,6 +259,8 @@ class Island(InputMixin, Gtk.Window):
         (ctx.add_class if alerting else ctx.remove_class)("water-alert")
         self._on_water_change()
         self._refresh_middle()
+        if alerting and self.cfg["water_sound"]:
+            play_sound(self.cfg["water_sound_name"], self.cfg["water_sound_volume"])
         if alerting and self.cfg["water_notify"]:
             self.app.notify_water(self.water.consumed, self.cfg["water_goal_ml"])
         elif not alerting:

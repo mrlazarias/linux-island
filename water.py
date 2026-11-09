@@ -11,6 +11,15 @@ from datetime import datetime, timedelta
 
 from gi.repository import Gio, GLib
 
+SOUND_DIR = "/usr/share/sounds/freedesktop/stereo"
+SOUNDS = [  # id do arquivo .oga -> nome na UI
+    ("message-new-instant", "Mensagem"),
+    ("complete", "Concluído"),
+    ("bell", "Sino"),
+    ("dialog-information", "Aviso suave"),
+    ("window-attention", "Atenção"),
+    ("alarm-clock-elapsed", "Despertador"),
+]
 STATE_PATH = os.path.join(GLib.get_user_state_dir(), "linux-island", "water.json")
 TICK_S = 30
 
@@ -63,6 +72,26 @@ def status_text(now, state, cfg):
     if nxt <= now:
         return "Hora de beber água!"
     return f"Próximo lembrete às {nxt.strftime('%H:%M')}"
+
+
+def play_sound(name, volume):
+    """Toca um som do tema freedesktop sem travar a UI. volume: 0–100."""
+    if name not in dict(SOUNDS):
+        return
+    path = os.path.join(SOUND_DIR, name + ".oga")
+    if not os.path.exists(path):
+        print(f"[island] som não encontrado: {path}")
+        return
+    v = max(0, min(100, volume))
+    for cmd in (["paplay", f"--volume={int(65536 * v / 100)}", path],
+                ["pw-play", f"--volume={v / 100:.2f}", path]):
+        if GLib.find_program_in_path(cmd[0]):
+            try:
+                Gio.Subprocess.new(cmd, Gio.SubprocessFlags.STDOUT_SILENCE
+                                   | Gio.SubprocessFlags.STDERR_SILENCE)
+            except GLib.Error as e:
+                print(f"[island] não deu para tocar o som: {e.message}")
+            return
 
 
 # --- estado + agenda (lado GTK) --------------------------------------------

@@ -23,6 +23,7 @@ Feita para o **COSMIC** (Pop!_OS 24.04). Veja a [compatibilidade](#compatibilida
 - **Lembrete de beber água**: uma página só para isso na ilha expandida.
   - Anel com o progresso da meta do dia, uma gota por copo, botão **+copo** e desfazer.
   - Na hora de beber, a pílula mostra **"Hora de beber água"** com a borda azul pulsando, e passar o mouse ou clicar abre direto na página da água, com o botão **Adiar**.
+  - **Aviso sonoro** ao lembrar: dá para escolher o som e o volume, e testar nas configurações.
   - Notificação do sistema opcional, com **Bebi** e **Adiar**.
   - O contador zera sozinho na virada do dia.
 - **Animações**: a pílula muda de tamanho e de arredondamento ao expandir, e a capa e o equalizador deslizam pra dentro quando a música começa.
@@ -94,7 +95,7 @@ Clique com o botão direito na ilha e escolha **Configurações…**, ou rode `.
 | **Relógio e clima** | 12h/24h, data na pílula, cidade (vazio = detectar pelo IP), °C ou °F, clima na pílula |
 | **Comportamento** | expandir no hover, atraso do hover, mostrar a música nova na pílula, volume pela rolagem, distância do topo, iniciar com a sessão |
 
-| **Água** | ligar/desligar, intervalo, adiar por, meta diária, tamanho do copo, horário de início e fim, notificação do sistema, zerar hoje |
+| **Água** | ligar/desligar, intervalo, adiar por, meta diária, tamanho do copo, horário de início e fim, aviso sonoro (som, volume, testar), notificação do sistema, zerar hoje |
 | **Spotify** | Client ID do seu app, conectar e desconectar a conta |
 
 As opções de linha de comando valem só para aquela execução e não alteram o arquivo:
