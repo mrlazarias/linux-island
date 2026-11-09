@@ -6,7 +6,7 @@ Uma *dynamic island* para o Linux que fica no centro do painel, no lugar do rel�
 
 ![Ilha expandida](docs/expanded.png)
 
-Feita para o **COSMIC** (Pop!_OS 24.04), mas deve funcionar em qualquer compositor Wayland com suporte a `wlr-layer-shell` (Hyprland, Sway, river, niri, KDE Plasma…).
+Feita para o **COSMIC** (Pop!_OS 24.04). Veja a [compatibilidade](#compatibilidade) com outros ambientes.
 
 ## Recursos
 
@@ -31,6 +31,20 @@ Feita para o **COSMIC** (Pop!_OS 24.04), mas deve funcionar em qualquer composit
 | Clique do meio | play / pause |
 | Clique direito | menu: Configurações, Abrir o Spotify, Sair |
 | Clicar ou arrastar na barra | pula para o ponto da música |
+
+## Compatibilidade
+
+Precisa de **Wayland** com suporte a `wlr-layer-shell`, que é o recurso que prende a ilha no topo da tela, por cima das janelas.
+
+| Ambiente | Situação |
+|---|---|
+| **COSMIC** | ✅ testado; dá para substituir o relógio do painel |
+| **Hyprland, Sway, river, niri, Wayfire** | 🟡 têm layer-shell e devem funcionar (não testado) |
+| **KDE Plasma (Wayland)** | 🟡 o KWin tem layer-shell e deve funcionar (não testado) |
+| **GNOME** | ❌ o Mutter não suporta layer-shell; precisaria de uma extensão do GNOME Shell |
+| **X11** | ❌ não suportado |
+
+Fora do COSMIC, a ilha aparece no topo, centralizada. Esconda o relógio da sua barra (Waybar, painel do Plasma…) ou ajuste a posição com `--margin` ou em *Configurações → Comportamento*. Testou em outro ambiente? Abra uma issue contando como foi.
 
 ## Instalação
 
