@@ -44,7 +44,7 @@ APP_ID = "io.github.mrlazarias.LinuxIsland"
 TRANSITION_MS = 320
 COLLAPSE_DELAY_MS = 700  # tolera leaves espúrios do compositor
 VOLUME_STEP = 0.05     # 5% por "clique" da roda do mouse
-PEEK_MS = 3000         # quanto tempo abre sozinha quando a faixa muda
+PEEK_MS = 4000         # quanto tempo a pílula mostra a faixa nova
 
 
 class Island(Gtk.Window):
@@ -197,6 +197,9 @@ class Island(Gtk.Window):
         ctx = self.shell.get_style_context()
         (ctx.add_class if value else ctx.remove_class)("expanded")
         self.stack.set_visible_child_name("expanded" if value else "compact")
+        if value:  # ao expandir, a pílula volta ao relógio para quando fechar
+            self._cancel("track_peek")
+            self.compact.show_track(False)
         self._follow_size()
         if value:
             self._tick_music()
@@ -233,14 +236,13 @@ class Island(Gtk.Window):
         if not self.hovered:
             self._closed_by_click = False
         if self.hovered:
-            self._cancel("peek")
             self._cancel("collapse")
             if not self.expanded and not self._closed_by_click and self.cfg["hover_expand"]:
                 self._later("expand", self.cfg["hover_delay_ms"],
                             lambda: self._pointer_inside() and self.set_expanded(True))
         else:
             self._cancel("expand")
-            if self.expanded and "peek" not in self._timers:
+            if self.expanded:
                 self._later("collapse", COLLAPSE_DELAY_MS,
                             lambda: self._pointer_inside() or self.set_expanded(False))
 
@@ -259,7 +261,7 @@ class Island(Gtk.Window):
         self._last_click = ev.time
         log("click", ev.button)
         if ev.button == 1:  # clique numa área livre alterna aberta/fechada
-            for t in ("expand", "collapse", "peek"):
+            for t in ("expand", "collapse"):
                 self._cancel(t)
             self._closed_by_click = self.expanded
             self.set_expanded(not self.expanded)
@@ -328,10 +330,16 @@ class Island(Gtk.Window):
         self._menu_ref = menu  # mantém vivo enquanto aberto
 
     def _peek(self):
-        if self.hovered or not self.cfg["peek_on_track"]:
+        """Faixa nova: a pílula se estica na horizontal com título · artista e volta."""
+        if self.expanded or not self.cfg["peek_on_track"]:
             return
-        self.set_expanded(True)
-        self._later("peek", PEEK_MS, lambda: self.hovered or self.set_expanded(False))
+        self.compact.show_track(True)
+        self._follow_size()
+        self._later("track_peek", PEEK_MS, self._end_peek)
+
+    def _end_peek(self):
+        self.compact.show_track(False)
+        self._follow_size()
 
     # --- relógio e clima ------------------------------------------------
     def _tick_clock(self):
@@ -357,6 +365,8 @@ class Island(Gtk.Window):
     def _on_track(self, track):
         prev = self.full.title.get_text() if self.full.music_rev.get_reveal_child() else ""
         self.full.set_track(track)
+        if track:
+            self.compact.set_track_text(track.title, track.artist)
         self.compact.set_music(track is not None, self.player.playing)
         self._follow_size()
         self.web.kick()

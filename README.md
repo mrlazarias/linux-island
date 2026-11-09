@@ -18,7 +18,7 @@ Feita para o **COSMIC** (Pop!_OS 24.04). Veja a [compatibilidade](#compatibilida
   - botões de anterior, play/pause e próxima;
   - **volume**: barra arrastável com botão de mudo, ou rolagem do mouse sobre a ilha, de 5% em 5%;
   - o equalizador e a barra de progresso usam a cor predominante da capa;
-  - a ilha abre sozinha por alguns segundos quando a faixa muda;
+  - na troca de faixa, a pílula se estica na horizontal mostrando título e artista por alguns segundos e volta ao relógio;
   - opcional: **playlist** (ou álbum, artista, Músicas Curtidas) e **dispositivo** onde está tocando (celular, caixa de som, TV…). Quando toca em outro aparelho, aparece um ícone dele na pílula.
 - **Animações**: a pílula muda de tamanho e de arredondamento ao expandir, e a capa e o equalizador deslizam pra dentro quando a música começa.
 - **Leve**: Python + GTK3, sem polling de metadados. O Spotify avisa por D-Bus quando algo muda.
@@ -85,7 +85,7 @@ Clique com o botão direito na ilha e escolha **Configurações…**, ou rode `.
 |---|---|
 | **Aparência** | temas prontos (Clássico, Vidro, Claro, Spotify, Grafite), cor de fundo com transparência, cor do texto, cor de destaque fixa ou automática pela capa, arredondamento, borda |
 | **Relógio e clima** | 12h/24h, data na pílula, cidade (vazio = detectar pelo IP), °C ou °F, clima na pílula |
-| **Comportamento** | expandir no hover, atraso do hover, abrir quando a música muda, volume pela rolagem, distância do topo, iniciar com a sessão |
+| **Comportamento** | expandir no hover, atraso do hover, mostrar a música nova na pílula, volume pela rolagem, distância do topo, iniciar com a sessão |
 
 | **Spotify** | Client ID do seu app, conectar e desconectar a conta |
 
