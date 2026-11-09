@@ -3,7 +3,7 @@ import os
 
 from gi.repository import GLib, Gtk
 
-from config import rgba
+from config import css_color, rgba
 
 AUTOSTART = os.path.join(GLib.get_user_config_dir(), "autostart", "linux-island.desktop")
 RUN_SH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "run.sh")
@@ -15,6 +15,81 @@ PRESETS = [  # nome, fundo, texto, destaque automático, destaque fixo
     ("Spotify", "rgba(18,18,18,1)", "rgb(255,255,255)", False, "rgb(30,215,96)"),
     ("Grafite", "rgba(43,46,52,1)", "rgb(230,232,236)", False, "rgb(255,159,67)"),
 ]
+
+
+def settings_css(cfg):
+    """Mesmo visual da ilha: fundo/texto da config, cantos redondos, pílulas."""
+    bg, fg = rgba(cfg["bg_color"]), rgba(cfg["text_color"])
+    bg.alpha = 1.0  # a janela de configurações não fica transparente
+    ac = rgba("rgb(30,215,96)" if cfg["accent_auto"] else cfg["accent_color"])
+    B, F, A = css_color(bg), css_color(fg), css_color(ac)
+
+    def f(a):
+        return css_color(fg, a)
+
+    return f"""
+window.island-settings, window.island-settings.background {{
+  background-color: {B}; color: {F};
+}}
+window.island-settings decoration {{
+  border-radius: 22px; border: 1px solid {f(0.08)};
+  box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+}}
+window.island-settings headerbar {{
+  background: {B}; border: none; box-shadow: none; color: {F};
+  border-radius: 22px 22px 0 0; padding: 10px 12px; min-height: 0;
+}}
+window.island-settings headerbar button,
+window.island-settings button {{
+  background: {f(0.06)}; color: {F}; border: none; box-shadow: none;
+  border-radius: 999px; padding: 6px 14px; text-shadow: none; -gtk-icon-shadow: none;
+}}
+window.island-settings button:hover {{ background: {f(0.12)}; }}
+window.island-settings button:active {{ background: {f(0.2)}; }}
+window.island-settings headerbar button.titlebutton {{ padding: 4px; min-width: 24px; min-height: 24px; }}
+window.island-settings stackswitcher button {{
+  background: transparent; color: {f(0.6)}; margin: 0 2px; font-weight: 600;
+}}
+window.island-settings stackswitcher button:checked {{ background: {f(0.14)}; color: {F}; }}
+window.island-settings scrolledwindow, window.island-settings viewport,
+window.island-settings stack {{ background: transparent; }}
+window.island-settings label.section {{
+  color: {f(0.5)}; font-size: 11px; font-weight: 700; letter-spacing: 1px; margin-left: 6px;
+}}
+window.island-settings frame > border {{ border: none; }}
+window.island-settings list {{
+  background: {f(0.05)}; color: {F}; border-radius: 18px;
+}}
+window.island-settings list row {{ background: transparent; border-radius: 18px; }}
+window.island-settings list row:hover {{ background: transparent; }}
+window.island-settings list row + row {{ border-top: 1px solid {f(0.06)}; }}
+window.island-settings label.dim-label {{ color: {f(0.55)}; opacity: 1; font-size: 12px; }}
+window.island-settings switch {{
+  background: {f(0.18)}; border: none; border-radius: 999px; min-height: 26px;
+}}
+window.island-settings switch:checked {{ background: {A}; }}
+window.island-settings switch slider {{
+  background: #ffffff; border: none; border-radius: 999px; box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  min-width: 22px; min-height: 22px; margin: 2px;
+}}
+window.island-settings entry, window.island-settings spinbutton {{
+  background: {f(0.08)}; color: {F}; border: 1px solid transparent; border-radius: 12px;
+  box-shadow: none; caret-color: {A};
+}}
+window.island-settings entry:focus, window.island-settings spinbutton:focus {{
+  border-color: {A};
+}}
+window.island-settings spinbutton entry {{ background: transparent; border: none; }}
+window.island-settings spinbutton button {{ border-radius: 999px; padding: 4px 8px; background: transparent; }}
+window.island-settings combobox button {{ border-radius: 12px; }}
+window.island-settings button.color {{ padding: 4px; border-radius: 999px; }}
+window.island-settings button.color colorswatch {{ border-radius: 999px; min-width: 28px; min-height: 18px; }}
+window.island-settings flowboxchild {{ background: transparent; }}
+window.island-settings flowboxchild button {{ background: transparent; border-radius: 16px; }}
+window.island-settings flowboxchild button:hover {{ background: {f(0.08)}; }}
+window.island-settings menu, window.island-settings .menu {{ background: {B}; color: {F}; }}
+window.island-settings list row > box:disabled {{ opacity: 0.45; }}
+"""
 
 
 def autostart_enabled():
@@ -41,6 +116,13 @@ class Settings(Gtk.Window):
         self._sync = {}  # chave -> função que atualiza o widget a partir da config
         self.set_default_size(520, 560)
         self.set_icon_name("preferences-system")
+        self.get_style_context().add_class("island-settings")
+        self._css = Gtk.CssProvider()
+        self._css.connect("parsing-error", lambda _p, sec, err: print(
+            f"[island] CSS das configurações, linha {sec.get_start_line() + 1}: {err.message}"))
+        Gtk.StyleContext.add_provider_for_screen(
+            self.get_screen(), self._css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 2)
+        self._restyle()
 
         header = Gtk.HeaderBar(show_close_button=True)
         header.set_title("Configurações")
@@ -58,10 +140,17 @@ class Settings(Gtk.Window):
         self.add(stack)
 
         cfg.connect(self._on_config)
-        self.connect("destroy", lambda *_: cfg.disconnect(self._on_config))
+        self.connect("destroy", lambda *_: (
+            cfg.disconnect(self._on_config),
+            Gtk.StyleContext.remove_provider_for_screen(self.get_screen(), self._css)))
         self.show_all()
 
+    def _restyle(self):
+        self._css.load_from_data(settings_css(self.cfg).encode())
+
     def _on_config(self, key):
+        if key in ("bg_color", "text_color", "accent_auto", "accent_color"):
+            self._restyle()
         fn = self._sync.get(key)
         if fn:
             fn()
@@ -78,8 +167,8 @@ class Settings(Gtk.Window):
 
     @staticmethod
     def _group(parent, title):
-        lb = Gtk.Label(xalign=0)
-        lb.set_markup(f"<b>{GLib.markup_escape_text(title)}</b>")
+        lb = Gtk.Label(label=title.upper(), xalign=0)
+        lb.get_style_context().add_class("section")
         frame = Gtk.Frame()
         listbox = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
         frame.add(listbox)

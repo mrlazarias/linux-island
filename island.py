@@ -84,6 +84,7 @@ class Island(Gtk.Window):
         if visual:
             self.set_visual(visual)
         self.set_app_paintable(True)
+        self.get_style_context().add_class("island-window")
 
         css = Gtk.CssProvider()
         css.load_from_path(os.path.join(HERE, "style.css"))

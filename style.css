@@ -1,5 +1,6 @@
-window,
-window.background {
+/* só a janela da ilha é transparente (a de configurações tem fundo próprio) */
+window.island-window,
+window.island-window.background {
   background-color: transparent;
 }
 
