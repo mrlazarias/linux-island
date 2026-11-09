@@ -66,13 +66,24 @@ class InputMixin:
                 self._later("collapse", COLLAPSE_DELAY_MS,
                             lambda: self._pointer_inside() or self.set_expanded(False))
 
+    def _drop_stale_press(self, ev):
+        """Se a soltura do botão se perdeu, não deixa a ilha presa aberta."""
+        if self._press is None:
+            return
+        held = ev.get_state()[1] & Gdk.ModifierType.BUTTON1_MASK
+        if not held or time.monotonic() - self._press[2] > 3:
+            log("press perdido, descartando")
+            self._press = None
+
     def _enter(self, _w, ev):
         log("enter", ev.detail.value_nick)
+        self._drop_stale_press(ev)
         # adia para o próximo ciclo: o GDK atualiza o foco do ponteiro depois do evento
         self._later("hover", 30, self._recheck_hover)
 
     def _leave(self, _w, ev):
         log("leave", ev.detail.value_nick)
+        self._drop_stale_press(ev)
         self._later("hover", 30, self._recheck_hover)
 
     def _click(self, _w, ev):
@@ -82,7 +93,7 @@ class InputMixin:
         log("press", ev.button)
         if ev.button == 1:
             # decide na soltura: clique (alterna) ou arrasto (troca de página)
-            self._press = (ev.x_root, ev.y_root)
+            self._press = (ev.x_root, ev.y_root, time.monotonic())
         elif ev.button == 3:
             self._menu(ev)
         elif ev.button == 2:
@@ -92,7 +103,7 @@ class InputMixin:
     def _release(self, _w, ev):
         if ev.button != 1 or self._press is None:
             return False
-        x0, y0 = self._press
+        x0, y0, _t = self._press
         self._press = None
         dx, dy = ev.x_root - x0, ev.y_root - y0
         log("release", round(dx), round(dy))
