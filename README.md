@@ -20,6 +20,12 @@ Feita para o **COSMIC** (Pop!_OS 24.04). Veja a [compatibilidade](#compatibilida
   - o equalizador e a barra de progresso usam a cor predominante da capa;
   - na troca de faixa, a pílula se estica na horizontal mostrando título e artista por alguns segundos e volta ao relógio;
   - opcional: **playlist** (ou álbum, artista, Músicas Curtidas) e **dispositivo** onde está tocando (celular, caixa de som, TV…). Quando toca em outro aparelho, aparece um ícone dele na pílula.
+- **Lembrete de beber água**: uma página só para isso na ilha expandida.
+  - Anel com o progresso da meta do dia, uma gota por copo, botão **+copo** e desfazer.
+  - Na hora de beber, a pílula mostra **"Hora de beber água"** com a borda azul pulsando, e passar o mouse ou clicar abre direto na página da água, com o botão **Adiar**.
+  - **Aviso sonoro** ao lembrar: dá para escolher o som e o volume, e testar nas configurações.
+  - Notificação do sistema opcional, com **Bebi** e **Adiar**.
+  - O contador zera sozinho na virada do dia.
 - **Animações**: a pílula muda de tamanho e de arredondamento ao expandir, e a capa e o equalizador deslizam pra dentro quando a música começa.
 - **Leve**: Python + GTK3, sem polling de metadados. O Spotify avisa por D-Bus quando algo muda.
 
@@ -33,6 +39,8 @@ Feita para o **COSMIC** (Pop!_OS 24.04). Veja a [compatibilidade](#compatibilida
 | Rolar sobre a ilha | volume do Spotify (±5%) |
 | Clique direito | menu: Configurações, Abrir o Spotify, Sair |
 | Clicar ou arrastar na barra | pula para o ponto da música |
+| Arrastar para o lado (com a ilha aberta) | troca de página: música/clima ↔ água |
+| Dois dedos para o lado no touchpad, ou clicar nos pontinhos | troca de página |
 
 ## Compatibilidade
 
@@ -87,6 +95,7 @@ Clique com o botão direito na ilha e escolha **Configurações…**, ou rode `.
 | **Relógio e clima** | 12h/24h, data na pílula, cidade (vazio = detectar pelo IP), °C ou °F, clima na pílula |
 | **Comportamento** | expandir no hover, atraso do hover, mostrar a música nova na pílula, volume pela rolagem, distância do topo, iniciar com a sessão |
 
+| **Água** | ligar/desligar, intervalo, adiar por, meta diária, tamanho do copo, horário de início e fim, aviso sonoro (som, volume, testar), notificação do sistema, zerar hoje |
 | **Spotify** | Client ID do seu app, conectar e desconectar a conta |
 
 As opções de linha de comando valem só para aquela execução e não alteram o arquivo:
@@ -138,6 +147,10 @@ EOF
 | `config.py` | configurações com padrões e validação; gera o CSS das cores |
 | `settings.py` | janela de configurações |
 | `views.py` | conteúdo dos modos compacto e expandido |
+| `pointer.py` | mouse: hover, clique, arrastar para trocar de página, rolagem e menu |
+| `water.py` | lembrete de água: estado do dia, agenda e notificação |
+| `water_view.py` | página "Hidratação" (anel, gotas, botões) |
+| `settings_pages.py` | abas Água e Spotify das configurações |
 | `widgets.py` | capa arredondada, equalizador e barra de progresso desenhados com cairo |
 | `spotify_web.py` | Spotify Web API: login OAuth PKCE, playlist e dispositivo em reprodução |
 | `spotify.py` | cliente MPRIS (`org.mpris.MediaPlayer2.spotify`), posição interpolada e download da capa |
@@ -149,6 +162,8 @@ Algumas particularidades descobertas no caminho:
 - **Posição da música:** o Spotify não emite mudanças da propriedade `Position`. A posição é interpolada localmente e ressincronizada a cada ~3 s e no sinal `Seeked`.
 - **Tamanho da janela:** janelas GTK3 não encolhem sozinhas. Durante as animações, a janela acompanha o tamanho do conteúdo a cada frame.
 - **Hover:** no Wayland o GTK3 gera eventos `enter`/`leave` "fantasmas" ao cruzar as sub-janelas internas. Por isso o hover consulta onde o ponteiro realmente está.
+- **Lembrete depois da suspensão:** a agenda é recalculada a cada 30 s pelo relógio de parede. Um timeout longo do GLib usa o relógio monotônico, que para durante a suspensão, e o lembrete chegaria horas atrasado.
+- **Notificações:** no COSMIC o `GNotification` falha sem avisar, porque escolhe um backend que não existe lá. A notificação fala direto com `org.freedesktop.Notifications`.
 - **Localização:** o GeoClue não responde sem um agente, como no COSMIC. Por isso a cidade vem do IP, ou de `--city`.
 
 Para depurar, rode com `ISLAND_DEBUG=1 ./run.sh` e acompanhe os eventos no terminal.
@@ -158,12 +173,14 @@ Para depurar, rode com `ISLAND_DEBUG=1 ./run.sh` e acompanhe os eventos no termi
 - Para descobrir a cidade, o seu IP é enviado ao [ipwho.is](https://ipwho.is/), a não ser que você use `--city`. O resultado fica em cache por 6 horas em `~/.cache/linux-island/`.
 - As coordenadas são enviadas ao [Open-Meteo](https://open-meteo.com/) para buscar a previsão.
 - Se você conectar a Web API, o login é OAuth PKCE (sem segredo) e pede só permissão de leitura: `user-read-playback-state`, `playlist-read-private` e `playlist-read-collaborative`. O token fica em `~/.config/linux-island/spotify-token.json`, legível só pelo seu usuário. Para revogar, use **Desconectar** ou acesse [spotify.com/account/apps](https://www.spotify.com/account/apps/).
+- O contador de água fica só no seu computador, em `~/.local/state/linux-island/water.json`.
 - As capas são baixadas do CDN do Spotify e guardadas em `~/.cache/linux-island/art/`.
 
 ## Roadmap
 
 - [x] Menu de configurações (cores, temas, cidade, unidades, comportamento)
 - [x] Playlist e dispositivo em reprodução (Spotify Web API)
+- [x] Lembrete de beber água (configurável)
 - [ ] Outros players MPRIS (Firefox, VLC, mpv…)
 - [ ] Notificações na ilha
 - [x] Volume (barra, mudo e rolagem do mouse)

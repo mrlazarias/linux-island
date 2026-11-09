@@ -6,7 +6,6 @@ Mostra hora, data, clima e o Spotify; expande ao passar o mouse.
 import os
 import socket
 import sys
-import time
 from datetime import datetime
 
 import gi
@@ -23,31 +22,25 @@ except (ValueError, ImportError):
 
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
+from pointer import InputMixin, log  # noqa: E402
 from config import Config, accent_tuple, build_css, rgba  # noqa: E402
 from settings import Settings  # noqa: E402
 from spotify import Spotify  # noqa: E402
 from spotify_web import SpotifyWeb  # noqa: E402
-from views import Compact, Expanded  # noqa: E402
+from views import Compact, Expanded, label  # noqa: E402
+from water import Notifier, Water, play_sound  # noqa: E402
+from water_view import DropIcon, WaterPage  # noqa: E402
 from weather import Weather  # noqa: E402
 from widgets import accent_from_pixbuf  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEBUG = bool(os.environ.get("ISLAND_DEBUG"))
-
-
-def log(*a):
-    if DEBUG:
-        print(f"[island {time.monotonic():.2f}]", *a, flush=True)
-
-
 APP_ID = "io.github.mrlazarias.LinuxIsland"
 TRANSITION_MS = 320
-COLLAPSE_DELAY_MS = 700  # tolera leaves espúrios do compositor
-VOLUME_STEP = 0.05     # 5% por "clique" da roda do mouse
 PEEK_MS = 4000         # quanto tempo a pílula mostra a faixa nova
+PAGES = ("home", "water")  # páginas da ilha expandida, na ordem do arrasto
 
 
-class Island(Gtk.Window):
+class Island(InputMixin, Gtk.Window):
     def __init__(self, app, cfg):
         super().__init__(title="linux-island")
         self.app = app
@@ -68,6 +61,9 @@ class Island(Gtk.Window):
         self._last_scroll = None
         self._scroll_acc = 0.0
         self._last_discrete = None
+        self._press = None
+        self._hscroll = 0.0
+        self.water = Water(cfg, self._on_water_change, self._on_water_alert)
         self._build()
         self.weather = Weather(self._on_weather, cfg["city"], cfg["units"])
         self.web_status = ("Conectado", True)
@@ -116,6 +112,7 @@ class Island(Gtk.Window):
             for bar in (self.full.progress, self.full.vol_bar):
                 bar.fg = (fg.red, fg.green, fg.blue)
                 bar.queue_draw()
+            self.water_page.set_fg((fg.red, fg.green, fg.blue))
         if key is None or key in ("accent_auto", "accent_color"):
             self._apply_accent()
         if key is None or key == "clock_24h":
@@ -127,6 +124,9 @@ class Island(Gtk.Window):
             self.weather.configure(cfg["city"], cfg["units"])
         if key == "spotify_client_id":
             self.web.set_client_id(cfg["spotify_client_id"])
+        if key is None or (key or "").startswith("water_"):
+            self.water.tick()
+            self._on_water_change()
         if key is None or key == "margin_top":
             GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, cfg["margin_top"])
         self._follow_size()
@@ -147,8 +147,9 @@ class Island(Gtk.Window):
         # Eventos na própria janela: o Gtk.Stack tem GdkWindow própria, então
         # cliques sobem direto para a janela e um EventBox no meio não os vê.
         self.add_events(Gdk.EventMask.ENTER_NOTIFY_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK
-                        | Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.SCROLL_MASK
-                        | Gdk.EventMask.SMOOTH_SCROLL_MASK)
+                        | Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.BUTTON_RELEASE_MASK
+                        | Gdk.EventMask.SCROLL_MASK | Gdk.EventMask.SMOOTH_SCROLL_MASK)
+        self.connect("button-release-event", self._release)
         self.connect("scroll-event", self._scroll)
         self.connect("enter-notify-event", self._enter)
         self.connect("leave-notify-event", self._leave)
@@ -169,9 +170,101 @@ class Island(Gtk.Window):
 
         self.compact = Compact()
         self.full = Expanded(self.player)
+        self.water_page = WaterPage(self.water)
         self.stack.add_named(self.compact, "compact")
-        self.stack.add_named(self.full, "expanded")
+        self.stack.add_named(self._build_pages(), "expanded")
         self.stack.set_visible_child_name("compact")
+
+        # alerta de água no miolo da pílula
+        alert = Gtk.Box(spacing=8)
+        alert.pack_start(DropIcon(15), False, False, 0)
+        msg = label("clock")
+        msg.set_text("Hora de beber água")
+        self.alert_amount = label("dim")
+        alert.pack_start(msg, False, False, 0)
+        alert.pack_start(self.alert_amount, False, False, 0)
+        self.compact.middle.add_named(alert, "water")
+
+    def _build_pages(self):
+        """Ilha expandida: páginas lado a lado (arrastar para o lado troca) + pontinhos."""
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.pages = Gtk.Stack()
+        self.pages.set_homogeneous(False)
+        self.pages.set_interpolate_size(True)
+        self.pages.set_transition_type(Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
+        self.pages.set_transition_duration(TRANSITION_MS)
+        self.pages.add_named(self.full, "home")
+        self.pages.add_named(self.water_page, "water")
+        box.pack_start(self.pages, False, False, 0)
+
+        dots = Gtk.Box(spacing=6)
+        dots.set_halign(Gtk.Align.CENTER)
+        dots.set_margin_bottom(10)
+        self.dots = {}
+        for name in PAGES:
+            dot = Gtk.Button()
+            dot.set_can_focus(False)
+            dot.get_style_context().add_class("page-dot")
+            dot.connect("clicked", lambda _b, n=name: self.set_page(n))
+            dots.pack_start(dot, False, False, 0)
+            self.dots[name] = dot
+        box.pack_start(dots, False, False, 0)
+        self._mark_dot("home")
+        return box
+
+    def _mark_dot(self, name):
+        for n, dot in self.dots.items():
+            ctx = dot.get_style_context()
+            (ctx.add_class if n == name else ctx.remove_class)("active")
+
+    def set_page(self, name):
+        if name == self.pages.get_visible_child_name():
+            return
+        if name == "water":
+            self.water_page.update(self.cfg)
+        log("page", name)
+        self.pages.set_visible_child_name(name)
+        self._mark_dot(name)
+        self._follow_size()
+
+    def turn_page(self, step):
+        """step=+1 próxima página (arrastar para a esquerda), -1 anterior."""
+        i = PAGES.index(self.pages.get_visible_child_name()) + step
+        if 0 <= i < len(PAGES):
+            self.set_page(PAGES[i])
+
+    def _refresh_middle(self):
+        """O que aparece no miolo da pílula: faixa nova > alerta de água > relógio."""
+        if "track_peek" in self._timers:
+            name = "track"
+        elif self.water.alerting:
+            name = "water"
+        else:
+            name = "info"
+        self.compact.middle.set_visible_child_name(name)
+        self._follow_size()
+
+    # --- água -----------------------------------------------------------
+    def _on_water_change(self):
+        goal = self.cfg["water_goal_ml"]
+        self.alert_amount.set_text(f"{self.water.consumed}/{goal} ml")
+        self.water_page.update(self.cfg)
+        if self.app.settings:
+            self.app.settings._water_refresh()
+        self._follow_size()
+
+    def _on_water_alert(self, alerting):
+        log("water alert", alerting)
+        ctx = self.shell.get_style_context()
+        (ctx.add_class if alerting else ctx.remove_class)("water-alert")
+        self._on_water_change()
+        self._refresh_middle()
+        if alerting and self.cfg["water_sound"]:
+            play_sound(self.cfg["water_sound_name"], self.cfg["water_sound_volume"])
+        if alerting and self.cfg["water_notify"]:
+            self.app.notify_water(self.water.consumed, self.cfg["water_goal_ml"])
+        elif not alerting:
+            self.app.withdraw_water()
 
     # --- tamanho --------------------------------------------------------
     def _follow_size(self):
@@ -199,147 +292,21 @@ class Island(Gtk.Window):
         self.stack.set_visible_child_name("expanded" if value else "compact")
         if value:  # ao expandir, a pílula volta ao relógio para quando fechar
             self._cancel("track_peek")
-            self.compact.show_track(False)
+            self._refresh_middle()
+            if self.water.alerting:
+                self.set_page("water")
+        elif not self.water.alerting:
+            self.set_page("home")
         self._follow_size()
         if value:
             self._tick_music()
-
-    # --- mouse ----------------------------------------------------------
-    def _later(self, key, ms, fn):
-        self._cancel(key)
-
-        def run():
-            self._timers.pop(key, None)
-            fn()
-            return False
-
-        self._timers[key] = GLib.timeout_add(ms, run)
-
-    def _cancel(self, key):
-        sid = self._timers.pop(key, None)
-        if sid:
-            GLib.source_remove(sid)
-
-    def _pointer_inside(self):
-        """Pergunta ao GDK se o ponteiro está sobre a nossa superfície.
-
-        Os detalhes de enter/leave não servem: o GTK3 no Wayland gera pares
-        enter/leave "fantasmas" ao cruzar as GdkWindows internas do Stack.
-        """
-        seat = self.get_display().get_default_seat()
-        win = seat.get_pointer().get_window_at_position()[0] if seat else None
-        return win is not None and win.get_toplevel() == self.get_window()
-
-    def _recheck_hover(self):
-        self.hovered = self._pointer_inside()
-        log("hover?", self.hovered)
-        if not self.hovered:
-            self._closed_by_click = False
-        if self.hovered:
-            self._cancel("collapse")
-            if not self.expanded and not self._closed_by_click and self.cfg["hover_expand"]:
-                self._later("expand", self.cfg["hover_delay_ms"],
-                            lambda: self._pointer_inside() and self.set_expanded(True))
-        else:
-            self._cancel("expand")
-            if self.expanded:
-                self._later("collapse", COLLAPSE_DELAY_MS,
-                            lambda: self._pointer_inside() or self.set_expanded(False))
-
-    def _enter(self, _w, ev):
-        log("enter", ev.detail.value_nick)
-        # adia para o próximo ciclo: o GDK atualiza o foco do ponteiro depois do evento
-        self._later("hover", 30, self._recheck_hover)
-
-    def _leave(self, _w, ev):
-        log("leave", ev.detail.value_nick)
-        self._later("hover", 30, self._recheck_hover)
-
-    def _click(self, _w, ev):
-        if ev.time == self._last_click:  # o mesmo clique chega duas vezes
-            return False
-        self._last_click = ev.time
-        log("click", ev.button)
-        if ev.button == 1:  # clique numa área livre alterna aberta/fechada
-            for t in ("expand", "collapse"):
-                self._cancel(t)
-            self._closed_by_click = self.expanded
-            self.set_expanded(not self.expanded)
-        elif ev.button == 3:
-            self._menu(ev)
-        elif ev.button == 2:
-            self.player.play_pause()
-        return False
-
-    def _scroll(self, _w, ev):
-        """Rolagem em qualquer ponto da ilha muda o volume do Spotify."""
-        if not self.cfg["scroll_volume"] or not self.player.proxy:
-            return False
-        ok, dx, dy = ev.get_scroll_deltas()
-        log("scroll", ev.time, ev.direction.value_nick, ok, dy, ev.get_source_device().get_name())
-        key = (ev.time, ev.direction, round(dy, 3))
-        if key == self._last_scroll:  # o mesmo evento chega duas vezes
-            return True
-        self._last_scroll = key
-        if ev.direction in (Gdk.ScrollDirection.UP, Gdk.ScrollDirection.DOWN):
-            # roda do mouse: o Wayland manda um evento discreto + um suave por clique
-            self._last_discrete = ev.time
-            step = 1 if ev.direction == Gdk.ScrollDirection.UP else -1
-        elif ev.direction == Gdk.ScrollDirection.SMOOTH and ok:
-            if ev.time == self._last_discrete:  # par suave do clique já contado
-                return True
-            # touchpad: acumula deltas pequenos até virar um passo
-            self._scroll_acc -= dy / 1.5
-            step = int(self._scroll_acc)
-            self._scroll_acc -= step
-        else:
-            return False
-        if step:
-            v = round(self.player.volume + step * VOLUME_STEP, 2)
-            self.player.set_volume(v)
-            self._on_volume(self.player.volume, from_user=True)
-        return True
-
-    def _on_volume(self, v, from_user=False):
-        self.full.set_volume(v)
-        if from_user and not self.expanded:
-            self.compact.show_volume(v, True)
-            self._follow_size()
-            self._later("hide_volume", 1500, self._hide_volume)
-        elif "hide_volume" in self._timers:
-            self.compact.show_volume(v, True)
-
-    def _hide_volume(self):
-        self.compact.show_volume(self.player.volume, False)
-        self._follow_size()
-
-    def _menu(self, ev):
-        menu = Gtk.Menu()
-        items = [("Configurações…", self.app.open_settings)]
-        if self.player.proxy:
-            items.append(("Abrir o Spotify", self.player.raise_window))
-        items += [(None, None), ("Sair", self.app.quit)]
-        for text, cb in items:
-            item = Gtk.SeparatorMenuItem() if text is None else Gtk.MenuItem(label=text)
-            if cb:
-                item.connect("activate", lambda _i, f=cb: f())
-            menu.append(item)
-        menu.attach_to_widget(self)
-        menu.show_all()
-        menu.popup_at_pointer(ev)
-        self._menu_ref = menu  # mantém vivo enquanto aberto
 
     def _peek(self):
         """Faixa nova: a pílula se estica na horizontal com título · artista e volta."""
         if self.expanded or not self.cfg["peek_on_track"]:
             return
-        self.compact.show_track(True)
-        self._follow_size()
-        self._later("track_peek", PEEK_MS, self._end_peek)
-
-    def _end_peek(self):
-        self.compact.show_track(False)
-        self._follow_size()
+        self._later("track_peek", PEEK_MS, self._refresh_middle)
+        self._refresh_middle()
 
     # --- relógio e clima ------------------------------------------------
     def _tick_clock(self):
@@ -434,6 +401,21 @@ class App(Gtk.Application):
                              "Cidade do clima só nesta execução", "CIDADE")
         self.add_main_option("margin", 0, GLib.OptionFlags.NONE, GLib.OptionArg.INT,
                              "Distância do topo só nesta execução", "PX")
+        self.notifier = Notifier(self._notif_action)
+
+    def notify_water(self, consumed, goal):
+        self.notifier.notify(consumed, goal)
+
+    def withdraw_water(self):
+        self.notifier.close()
+
+    def _notif_action(self, action):
+        if self.island is None:
+            return
+        if action == "drink":
+            self.island.water.drink()
+        elif action == "snooze":
+            self.island.water.snooze()
 
     def do_command_line(self, cmdline):
         opts = cmdline.get_options_dict().end().unpack()
@@ -452,7 +434,7 @@ class App(Gtk.Application):
     def open_settings(self):
         log("open_settings", self.settings)
         if self.settings is None:
-            self.settings = Settings(self.island.cfg, self, self.island.web)
+            self.settings = Settings(self.island.cfg, self, self.island.web, self.island.water)
             self.settings.set_spotify_status(*self.island.web_status)
             self.settings.connect("destroy", lambda *_: setattr(self, "settings", None))
         self.settings.present()
