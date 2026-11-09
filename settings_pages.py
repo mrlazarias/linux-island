@@ -7,6 +7,41 @@ from gi.repository import Gtk
 
 
 class SettingsPagesMixin:
+    def _page_water(self):
+        scroll, page = self._page()
+        main = self._group(page, "Lembrete")
+        self._row(main, "Lembrar de beber água", self._switch("water_enabled"))
+        self._row(main, "Intervalo (min)", self._spin("water_interval_min", 5, 360, 5),
+                  "Tempo desde o último copo até o próximo lembrete")
+        self._row(main, "Adiar por (min)", self._spin("water_snooze_min", 1, 120, 1))
+        self._row(main, "Notificação do sistema", self._switch("water_notify"),
+                  "Além do aviso na ilha, mostra uma notificação com Bebi e Adiar")
+
+        goal = self._group(page, "Meta")
+        self._row(goal, "Meta diária (ml)", self._spin("water_goal_ml", 250, 8000, 250))
+        self._row(goal, "Tamanho do copo (ml)", self._spin("water_cup_ml", 50, 1500, 50),
+                  "Quanto soma cada clique em + na ilha")
+
+        hours = self._group(page, "Horário")
+        self._row(hours, "Começa às (h)", self._spin("water_start_h", 0, 23))
+        self._row(hours, "Termina às (h)", self._spin("water_end_h", 1, 24),
+                  "Se o fim não for depois do início, lembra o dia todo")
+
+        today = self._group(page, "Hoje")
+        self.water_today = Gtk.Label(xalign=0)
+        reset = Gtk.Button(label="Zerar hoje")
+        reset.connect("clicked", lambda *_: (self.water.reset_day(), self._water_refresh()))
+        self._row(today, "Consumido", reset).get_children()[0].pack_start(
+            self.water_today, False, False, 0)
+        self._water_refresh()
+        return scroll
+
+    def _water_refresh(self):
+        if hasattr(self, "water_today"):
+            self.water_today.set_text(
+                f"{self.water.consumed} de {self.cfg['water_goal_ml']} ml · {self.water.status()}")
+            self.water_today.get_style_context().add_class("dim-label")
+
     def _page_spotify(self):
         from spotify_web import REDIRECT_URI  # import local: módulo opcional da UI
 

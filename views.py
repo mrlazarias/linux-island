@@ -158,9 +158,6 @@ class Compact(Gtk.Box):
         self.t_sep.set_visible(bool(artist))
         self.t_artist.set_visible(bool(artist))
 
-    def show_track(self, visible):
-        self.middle.set_visible_child_name("track" if visible else "info")
-
     def set_clock(self, now, h24=True):
         self.clock.set_text(clock_text(now, h24))
         self.date.set_text(f"{DIAS_CURTOS[now.weekday()]} {now.day} {MESES[now.month - 1][:3]}")

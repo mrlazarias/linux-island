@@ -9,6 +9,9 @@ import time
 from gi.repository import Gdk, GLib, Gtk
 
 DEBUG = bool(os.environ.get("ISLAND_DEBUG"))
+CLICK_SLOP_PX = 8        # até isso de movimento, ainda é clique
+SWIPE_PX = 50            # a partir disso, arrastar para o lado troca de página
+HSCROLL_STEP = 3.0       # deltas horizontais do touchpad para trocar de página
 COLLAPSE_DELAY_MS = 700  # tolera leaves espúrios do compositor
 VOLUME_STEP = 0.05       # 5% por "clique" da roda do mouse
 
@@ -45,6 +48,9 @@ class InputMixin:
         return win is not None and win.get_toplevel() == self.get_window()
 
     def _recheck_hover(self):
+        if self._press is not None:
+            # botão segurado: arrastar para o lado sai da superfície, mas não fecha
+            return
         self.hovered = self._pointer_inside()
         log("hover?", self.hovered)
         if not self.hovered:
@@ -73,23 +79,40 @@ class InputMixin:
         if ev.time == self._last_click:  # o mesmo clique chega duas vezes
             return False
         self._last_click = ev.time
-        log("click", ev.button)
-        if ev.button == 1:  # clique numa área livre alterna aberta/fechada
-            for t in ("expand", "collapse"):
-                self._cancel(t)
-            self._closed_by_click = self.expanded
-            self.set_expanded(not self.expanded)
+        log("press", ev.button)
+        if ev.button == 1:
+            # decide na soltura: clique (alterna) ou arrasto (troca de página)
+            self._press = (ev.x_root, ev.y_root)
         elif ev.button == 3:
             self._menu(ev)
         elif ev.button == 2:
             self.player.play_pause()
         return False
 
+    def _release(self, _w, ev):
+        if ev.button != 1 or self._press is None:
+            return False
+        x0, y0 = self._press
+        self._press = None
+        dx, dy = ev.x_root - x0, ev.y_root - y0
+        log("release", round(dx), round(dy))
+        if self.expanded and abs(dx) >= SWIPE_PX and abs(dx) > abs(dy):
+            self.turn_page(1 if dx < 0 else -1)  # arrastar para a esquerda = próxima
+        elif abs(dx) <= CLICK_SLOP_PX and abs(dy) <= CLICK_SLOP_PX:
+            for t in ("expand", "collapse"):
+                self._cancel(t)
+            self._closed_by_click = self.expanded
+            self.set_expanded(not self.expanded)
+        self._later("hover", 30, self._recheck_hover)
+        return False
+
     def _scroll(self, _w, ev):
-        """Rolagem em qualquer ponto da ilha muda o volume do Spotify."""
+        """Rolagem vertical muda o volume; horizontal (touchpad) troca de página."""
+        ok, dx, dy = ev.get_scroll_deltas()
+        if self.expanded and self._hscroll_page(ev, ok, dx, dy):
+            return True
         if not self.cfg["scroll_volume"] or not self.player.proxy:
             return False
-        ok, dx, dy = ev.get_scroll_deltas()
         log("scroll", ev.time, ev.direction.value_nick, ok, dy, ev.get_source_device().get_name())
         key = (ev.time, ev.direction, round(dy, 3))
         if key == self._last_scroll:  # o mesmo evento chega duas vezes
@@ -112,6 +135,18 @@ class InputMixin:
             v = round(self.player.volume + step * VOLUME_STEP, 2)
             self.player.set_volume(v)
             self._on_volume(self.player.volume, from_user=True)
+        return True
+
+    def _hscroll_page(self, ev, ok, dx, dy):
+        if ev.direction in (Gdk.ScrollDirection.LEFT, Gdk.ScrollDirection.RIGHT):
+            self.turn_page(1 if ev.direction == Gdk.ScrollDirection.RIGHT else -1)
+            return True
+        if ev.direction != Gdk.ScrollDirection.SMOOTH or not ok or abs(dx) <= abs(dy):
+            return False
+        self._hscroll += dx
+        if abs(self._hscroll) >= HSCROLL_STEP:
+            self.turn_page(1 if self._hscroll > 0 else -1)
+            self._hscroll = 0.0
         return True
 
     def _on_volume(self, v, from_user=False):

@@ -42,6 +42,15 @@ SCHEMA = {
     # Spotify Web API (playlist e dispositivo); vazio = desligado
     "spotify_client_id": ("", lambda v: isinstance(v, str)
                           and (v == "" or re.fullmatch(r"[0-9a-fA-F]{32}", v) is not None)),
+    # lembrete de água
+    "water_enabled": (True, _is_bool),
+    "water_goal_ml": (2000, _int_range(250, 8000)),
+    "water_cup_ml": (250, _int_range(50, 1500)),
+    "water_interval_min": (60, _int_range(5, 360)),
+    "water_start_h": (8, _int_range(0, 23)),
+    "water_end_h": (22, _int_range(1, 24)),
+    "water_snooze_min": (10, _int_range(1, 120)),
+    "water_notify": (False, _is_bool),
     # comportamento
     "hover_expand": (True, _is_bool),
     "peek_on_track": (True, _is_bool),
@@ -140,6 +149,16 @@ def build_css(cfg):
 .island .control:active {{ background-color: {css_color(fg, 0.22)}; }}
 .island .day {{ background-color: {css_color(fg, 0.05)}; }}
 .island separator {{ background-color: {css_color(fg, 0.1)}; }}
+.island.water-alert {{ border-color: rgb(41,158,245); }}
+.island button.page-dot {{
+  min-width: 6px; min-height: 6px; padding: 0; border: none; box-shadow: none;
+  border-radius: 999px; background: {css_color(fg, 0.25)};
+}}
+.island button.page-dot.active {{ background: {css_color(fg, 0.9)}; min-width: 16px; }}
+.island button.water-snooze {{
+  background: {css_color(fg, 0.08)}; color: {css_color(fg)}; border: none; box-shadow: none;
+  border-radius: 999px; padding: 4px 12px; font-size: 11px;
+}}
 """
 
 

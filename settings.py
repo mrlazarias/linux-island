@@ -115,12 +115,13 @@ def set_autostart(enabled):
 
 
 class Settings(SettingsPagesMixin, Gtk.Window):
-    def __init__(self, cfg, app=None, web=None):
+    def __init__(self, cfg, app=None, web=None, water=None):
         super().__init__(title="linux-island — Configurações")
         if app:
             self.set_application(app)
         self.cfg = cfg
         self.web = web
+        self.water = water
         self._sync = {}  # chave -> função que atualiza o widget a partir da config
         self.set_default_size(520, 560)
         self.set_icon_name("preferences-system")
@@ -145,6 +146,8 @@ class Settings(SettingsPagesMixin, Gtk.Window):
         stack.add_titled(self._page_appearance(), "look", "Aparência")
         stack.add_titled(self._page_clock_weather(), "info", "Relógio e clima")
         stack.add_titled(self._page_behavior(), "behavior", "Comportamento")
+        if water is not None:
+            stack.add_titled(self._page_water(), "water", "Água")
         if web is not None:
             stack.add_titled(self._page_spotify(), "spotify", "Spotify")
         self.add(stack)
