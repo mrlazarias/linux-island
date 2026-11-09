@@ -34,8 +34,10 @@ class Spotify:
     on_art(path|None)
     """
 
-    def __init__(self, on_presence, on_track, on_status, on_art):
+    def __init__(self, on_presence, on_track, on_status, on_art, on_volume=None):
         self.on_presence = on_presence
+        self.on_volume = on_volume or (lambda v: None)
+        self.volume = 1.0
         self.on_track = on_track
         self.on_status = on_status
         self.on_art = on_art
@@ -81,6 +83,7 @@ class Spotify:
         return v.unpack() if v is not None else None
 
     def _read_all(self):
+        self._update_volume(self._prop("Volume"))
         self._update_status(self._prop("PlaybackStatus"))
         self._update_metadata(self._prop("Metadata"))
 
@@ -90,10 +93,17 @@ class Spotify:
             self._update_status(changed["PlaybackStatus"])
         if "Metadata" in changed:
             self._update_metadata(changed["Metadata"])
+        if "Volume" in changed:
+            self._update_volume(changed["Volume"])
 
     def _signal(self, _proxy, _sender, name, params):
         if name == "Seeked":
             self._set_pos(params.unpack()[0])
+
+    def _update_volume(self, v):
+        if isinstance(v, (int, float)):
+            self.volume = max(0.0, min(1.0, float(v)))
+            self.on_volume(self.volume)
 
     def _update_status(self, status):
         playing = status == "Playing"
@@ -192,6 +202,20 @@ class Spotify:
 
     def previous(self):
         self._call("Previous")
+
+    def set_volume(self, v):
+        """0.0–1.0. O Spotify aplica no volume do próprio stream de áudio."""
+        v = max(0.0, min(1.0, v))
+        self.volume = v
+        self._call("org.freedesktop.DBus.Properties.Set",
+                   GLib.Variant("(ssv)", (IFACE, "Volume", GLib.Variant("d", v))))
+
+    def toggle_mute(self):
+        if self.volume > 0.001:
+            self._unmute_to = self.volume
+            self.set_volume(0.0)
+        else:
+            self.set_volume(getattr(self, "_unmute_to", 0.5) or 0.5)
 
     def seek_to(self, fraction):
         if not self.track or not self.track.length or not self.track.trackid:

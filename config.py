@@ -45,6 +45,7 @@ SCHEMA = {
     # comportamento
     "hover_expand": (True, _is_bool),
     "peek_on_track": (True, _is_bool),
+    "scroll_volume": (True, _is_bool),
     "hover_delay_ms": (120, _int_range(0, 2000)),
     "margin_top": (2, _int_range(0, 200)),
 }

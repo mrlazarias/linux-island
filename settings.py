@@ -348,6 +348,8 @@ class Settings(Gtk.Window):
                   "Desligado: só abre com clique")
         self._row(hover, "Atraso do hover (ms)", self._spin("hover_delay_ms", 0, 2000, 20))
         self._row(hover, "Abrir quando a música mudar", self._switch("peek_on_track"))
+        self._row(hover, "Volume pela rolagem do mouse", self._switch("scroll_volume"),
+                  "Role sobre a ilha para aumentar ou baixar o volume do Spotify")
 
         pos = self._group(page, "Posição")
         self._row(pos, "Distância do topo (px)", self._spin("margin_top", 0, 200))

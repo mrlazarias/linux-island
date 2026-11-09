@@ -16,6 +16,7 @@ Feita para o **COSMIC** (Pop!_OS 24.04). Veja a [compatibilidade](#compatibilida
 - **Spotify** via MPRIS/D-Bus:
   - capa, título, artista e uma barra de progresso clicável e arrastável;
   - botões de anterior, play/pause e próxima;
+  - **volume**: barra arrastável com botão de mudo, ou rolagem do mouse sobre a ilha, de 5% em 5%;
   - o equalizador e a barra de progresso usam a cor predominante da capa;
   - a ilha abre sozinha por alguns segundos quando a faixa muda;
   - opcional: **playlist** (ou álbum, artista, Músicas Curtidas) e **dispositivo** onde está tocando (celular, caixa de som, TV…). Quando toca em outro aparelho, aparece um ícone dele na pílula.
@@ -29,6 +30,7 @@ Feita para o **COSMIC** (Pop!_OS 24.04). Veja a [compatibilidade](#compatibilida
 | Passar o mouse | expande |
 | Clique esquerdo numa área livre | abre ou fecha |
 | Clique do meio | play / pause |
+| Rolar sobre a ilha | volume do Spotify (±5%) |
 | Clique direito | menu: Configurações, Abrir o Spotify, Sair |
 | Clicar ou arrastar na barra | pula para o ponto da música |
 
@@ -83,7 +85,7 @@ Clique com o botão direito na ilha e escolha **Configurações…**, ou rode `.
 |---|---|
 | **Aparência** | temas prontos (Clássico, Vidro, Claro, Spotify, Grafite), cor de fundo com transparência, cor do texto, cor de destaque fixa ou automática pela capa, arredondamento, borda |
 | **Relógio e clima** | 12h/24h, data na pílula, cidade (vazio = detectar pelo IP), °C ou °F, clima na pílula |
-| **Comportamento** | expandir no hover, atraso do hover, abrir quando a música muda, distância do topo, iniciar com a sessão |
+| **Comportamento** | expandir no hover, atraso do hover, abrir quando a música muda, volume pela rolagem, distância do topo, iniciar com a sessão |
 
 | **Spotify** | Client ID do seu app, conectar e desconectar a conta |
 
@@ -164,7 +166,7 @@ Para depurar, rode com `ISLAND_DEBUG=1 ./run.sh` e acompanhe os eventos no termi
 - [x] Playlist e dispositivo em reprodução (Spotify Web API)
 - [ ] Outros players MPRIS (Firefox, VLC, mpv…)
 - [ ] Notificações na ilha
-- [ ] Volume pela rolagem do mouse
+- [x] Volume (barra, mudo e rolagem do mouse)
 - [ ] Idioma configurável
 - [ ] Calendário no modo expandido
 

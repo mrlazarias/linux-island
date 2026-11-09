@@ -43,6 +43,7 @@ def log(*a):
 APP_ID = "io.github.mrlazarias.LinuxIsland"
 TRANSITION_MS = 320
 COLLAPSE_DELAY_MS = 700  # tolera leaves espúrios do compositor
+VOLUME_STEP = 0.05     # 5% por "clique" da roda do mouse
 PEEK_MS = 3000         # quanto tempo abre sozinha quando a faixa muda
 
 
@@ -63,7 +64,10 @@ class Island(Gtk.Window):
         self._minute = None
 
         self.player = Spotify(self._on_presence, self._on_track,
-                              self._on_status, self._on_art)
+                              self._on_status, self._on_art, self._on_volume)
+        self._last_scroll = None
+        self._scroll_acc = 0.0
+        self._last_discrete = None
         self._build()
         self.weather = Weather(self._on_weather, cfg["city"], cfg["units"])
         self.web_status = ("Conectado", True)
@@ -109,8 +113,9 @@ class Island(Gtk.Window):
         if key is None or key in look:
             self.dyn_css.load_from_data(build_css(cfg).encode())
             fg = rgba(cfg["text_color"])
-            self.full.progress.fg = (fg.red, fg.green, fg.blue)
-            self.full.progress.queue_draw()
+            for bar in (self.full.progress, self.full.vol_bar):
+                bar.fg = (fg.red, fg.green, fg.blue)
+                bar.queue_draw()
         if key is None or key in ("accent_auto", "accent_color"):
             self._apply_accent()
         if key is None or key == "clock_24h":
@@ -133,7 +138,7 @@ class Island(Gtk.Window):
             accent = accent_from_pixbuf(None)
         else:
             accent = accent_tuple(self.cfg["accent_color"])
-        for w in (self.compact.eq, self.full.eq, self.full.progress):
+        for w in (self.compact.eq, self.full.eq, self.full.progress, self.full.vol_bar):
             w.accent = accent
             w.queue_draw()
 
@@ -142,7 +147,9 @@ class Island(Gtk.Window):
         # Eventos na própria janela: o Gtk.Stack tem GdkWindow própria, então
         # cliques sobem direto para a janela e um EventBox no meio não os vê.
         self.add_events(Gdk.EventMask.ENTER_NOTIFY_MASK | Gdk.EventMask.LEAVE_NOTIFY_MASK
-                        | Gdk.EventMask.BUTTON_PRESS_MASK)
+                        | Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.SCROLL_MASK
+                        | Gdk.EventMask.SMOOTH_SCROLL_MASK)
+        self.connect("scroll-event", self._scroll)
         self.connect("enter-notify-event", self._enter)
         self.connect("leave-notify-event", self._leave)
         self.connect("button-press-event", self._click)
@@ -261,6 +268,48 @@ class Island(Gtk.Window):
         elif ev.button == 2:
             self.player.play_pause()
         return False
+
+    def _scroll(self, _w, ev):
+        """Rolagem em qualquer ponto da ilha muda o volume do Spotify."""
+        if not self.cfg["scroll_volume"] or not self.player.proxy:
+            return False
+        ok, dx, dy = ev.get_scroll_deltas()
+        log("scroll", ev.time, ev.direction.value_nick, ok, dy, ev.get_source_device().get_name())
+        key = (ev.time, ev.direction, round(dy, 3))
+        if key == self._last_scroll:  # o mesmo evento chega duas vezes
+            return True
+        self._last_scroll = key
+        if ev.direction in (Gdk.ScrollDirection.UP, Gdk.ScrollDirection.DOWN):
+            # roda do mouse: o Wayland manda um evento discreto + um suave por clique
+            self._last_discrete = ev.time
+            step = 1 if ev.direction == Gdk.ScrollDirection.UP else -1
+        elif ev.direction == Gdk.ScrollDirection.SMOOTH and ok:
+            if ev.time == self._last_discrete:  # par suave do clique já contado
+                return True
+            # touchpad: acumula deltas pequenos até virar um passo
+            self._scroll_acc -= dy / 1.5
+            step = int(self._scroll_acc)
+            self._scroll_acc -= step
+        else:
+            return False
+        if step:
+            v = round(self.player.volume + step * VOLUME_STEP, 2)
+            self.player.set_volume(v)
+            self._on_volume(self.player.volume, from_user=True)
+        return True
+
+    def _on_volume(self, v, from_user=False):
+        self.full.set_volume(v)
+        if from_user and not self.expanded:
+            self.compact.show_volume(v, True)
+            self._follow_size()
+            self._later("hide_volume", 1500, self._hide_volume)
+        elif "hide_volume" in self._timers:
+            self.compact.show_volume(v, True)
+
+    def _hide_volume(self):
+        self.compact.show_volume(self.player.volume, False)
+        self._follow_size()
 
     def _menu(self, ev):
         menu = Gtk.Menu()

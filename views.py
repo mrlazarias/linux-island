@@ -52,6 +52,13 @@ def clock_text(now, h24):
     return f"{now.hour % 12 or 12}:{now.minute:02d} {'AM' if now.hour < 12 else 'PM'}"
 
 
+def volume_icon(v):
+    if v <= 0.001:
+        return "audio-volume-muted-symbolic"
+    return ("audio-volume-low-symbolic" if v < 0.34 else
+            "audio-volume-medium-symbolic" if v < 0.67 else "audio-volume-high-symbolic")
+
+
 def revealer(child, transition):
     r = Gtk.Revealer()
     r.set_transition_type(transition)
@@ -100,14 +107,22 @@ class Compact(Gtk.Box):
         eq_box.add(self.eq)
         self.eq_rev = revealer(eq_box, Gtk.RevealerTransitionType.SLIDE_LEFT)
 
+        vol = Gtk.Box(spacing=4)
+        vol.set_margin_start(10)
+        self.vol_icon = icon("audio-volume-high-symbolic", 13)
+        self.vol_label = label("temp")
+        vol.pack_start(self.vol_icon, False, False, 0)
+        vol.pack_start(self.vol_label, False, False, 0)
+        self.vol_rev = revealer(vol, Gtk.RevealerTransitionType.SLIDE_LEFT)
+
         self.dev_icon = icon("phone-symbolic", 13)
         dev_box = Gtk.Box()
         dev_box.set_margin_start(10)
         dev_box.add(self.dev_icon)
         self.dev_rev = revealer(dev_box, Gtk.RevealerTransitionType.SLIDE_LEFT)
 
-        for w in (self.art_rev, self.clock, self.date_rev, self.w_rev, self.dev_rev,
-                  self.eq_rev):
+        for w in (self.art_rev, self.clock, self.date_rev, self.w_rev, self.vol_rev,
+                  self.dev_rev, self.eq_rev):
             self.pack_start(w, False, False, 0)
 
     def set_clock(self, now, h24=True):
@@ -124,6 +139,11 @@ class Compact(Gtk.Box):
         self.date_rev.set_reveal_child(show_date)
         self.show_weather = show_weather
         self.w_rev.set_reveal_child(show_weather and self._has_weather)
+
+    def show_volume(self, v, visible):
+        self.vol_icon.set_from_icon_name(volume_icon(v), Gtk.IconSize.BUTTON)
+        self.vol_label.set_text(f"{round(v * 100)}%")
+        self.vol_rev.set_reveal_child(visible)
 
     def set_remote_device(self, icon_name):
         """icon_name=None esconde (tocando neste computador ou sem informação)."""
@@ -256,9 +276,25 @@ class Expanded(Gtk.Box):
         for b in (prev, play, nxt):
             ctrls.pack_start(b, False, False, 0)
 
-        for w in (head, bar, ctrls):
+        vol = Gtk.Box(spacing=8)
+        vol.set_margin_start(4)
+        mute, self.vol_img = control("audio-volume-high-symbolic", 15,
+                                     lambda: self.player.toggle_mute())
+        self.vol_bar = Progress(lambda f: self.player.set_volume(f), height=14, live=True)
+        self.vol_pct = label("time")
+        self.vol_pct.set_width_chars(5)
+        vol.pack_start(mute, False, False, 0)
+        vol.pack_start(self.vol_bar, True, True, 0)
+        vol.pack_start(self.vol_pct, False, False, 0)
+
+        for w in (head, bar, ctrls, vol):
             box.pack_start(w, False, False, 0)
         return box
+
+    def set_volume(self, v):
+        self.vol_img.set_from_icon_name(volume_icon(v), Gtk.IconSize.BUTTON)
+        self.vol_bar.set_fraction(v)
+        self.vol_pct.set_text(f"{round(v * 100)}%")
 
     def _build_playback_row(self):
         row = Gtk.Box(spacing=5)

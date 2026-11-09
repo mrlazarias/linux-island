@@ -103,9 +103,10 @@ class Equalizer(Gtk.DrawingArea):
 class Progress(Gtk.DrawingArea):
     """Barra de progresso clicável/arrastável. on_seek(fração)."""
 
-    def __init__(self, on_seek, height=16):
+    def __init__(self, on_seek, height=16, live=False):
         super().__init__()
         self.on_seek = on_seek
+        self.live = live  # chama on_seek enquanto arrasta (ex.: volume)
         self.fraction = 0.0
         self.accent = DEFAULT_ACCENT
         self.fg = (1, 1, 1)
@@ -138,12 +139,16 @@ class Progress(Gtk.DrawingArea):
     def _press(self, _w, ev):
         if ev.button == 1:
             self._drag = self._frac_at(ev.x)
+            if self.live:
+                self.on_seek(self._drag)
             self.queue_draw()
         return True
 
     def _motion(self, _w, ev):
         if self._drag is not None:
             self._drag = self._frac_at(ev.x)
+            if self.live:
+                self.on_seek(self._drag)
             self.queue_draw()
         return True
 
