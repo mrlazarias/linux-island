@@ -46,6 +46,12 @@ def control(icon_name, size, cb, main=False):
     return btn, img
 
 
+def clock_text(now, h24):
+    if h24:
+        return now.strftime("%H:%M")
+    return f"{now.hour % 12 or 12}:{now.minute:02d} {'AM' if now.hour < 12 else 'PM'}"
+
+
 def revealer(child, transition):
     r = Gtk.Revealer()
     r.set_transition_type(transition)
@@ -75,6 +81,10 @@ class Compact(Gtk.Box):
         self.clock = label("clock")
         self.date = label("dim")
         self.date.set_margin_start(7)
+        self.date_rev = revealer(self.date, Gtk.RevealerTransitionType.SLIDE_RIGHT)
+        self.date_rev.set_reveal_child(True)
+        self.show_weather = True
+        self._has_weather = False
 
         wbox = Gtk.Box(spacing=4)
         wbox.set_margin_start(12)
@@ -90,17 +100,23 @@ class Compact(Gtk.Box):
         eq_box.add(self.eq)
         self.eq_rev = revealer(eq_box, Gtk.RevealerTransitionType.SLIDE_LEFT)
 
-        for w in (self.art_rev, self.clock, self.date, self.w_rev, self.eq_rev):
+        for w in (self.art_rev, self.clock, self.date_rev, self.w_rev, self.eq_rev):
             self.pack_start(w, False, False, 0)
 
-    def set_clock(self, now):
-        self.clock.set_text(now.strftime("%H:%M"))
+    def set_clock(self, now, h24=True):
+        self.clock.set_text(clock_text(now, h24))
         self.date.set_text(f"{DIAS_CURTOS[now.weekday()]} {now.day} {MESES[now.month - 1][:3]}")
 
     def set_weather(self, fc):
         self.w_icon.set_from_icon_name(fc.icon, Gtk.IconSize.BUTTON)
         self.w_temp.set_text(f"{fc.temp}°")
-        self.w_rev.set_reveal_child(True)
+        self._has_weather = True
+        self.w_rev.set_reveal_child(self.show_weather)
+
+    def set_visibility(self, show_date, show_weather):
+        self.date_rev.set_reveal_child(show_date)
+        self.show_weather = show_weather
+        self.w_rev.set_reveal_child(show_weather and self._has_weather)
 
     def set_music(self, has_track, playing):
         self.art_rev.set_reveal_child(has_track)
@@ -153,8 +169,8 @@ class Expanded(Gtk.Box):
         head.pack_end(self.w_rev, False, False, 0)
         return head
 
-    def set_clock(self, now):
-        self.clock.set_text(now.strftime("%H:%M"))
+    def set_clock(self, now, h24=True):
+        self.clock.set_text(clock_text(now, h24))
         self.date.set_text(f"{DIAS[now.weekday()]}, {now.day} de {MESES[now.month - 1]}")
 
     def set_weather(self, fc):

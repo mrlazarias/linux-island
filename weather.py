@@ -78,16 +78,26 @@ class Forecast:
 class Weather:
     """Busca em thread e entrega Forecast na thread da UI via on_update."""
 
-    def __init__(self, on_update, city=None):
+    def __init__(self, on_update, city=None, units="celsius"):
         self.on_update = on_update
-        self.city = city
+        self.city = city or None
+        self.units = units
         self.location = None  # (lat, lon, nome)
         self._busy = False
+        self._again = False
         self.refresh()
         GLib.timeout_add_seconds(REFRESH_S, lambda: self.refresh() or True)
 
+    def configure(self, city, units):
+        city = city or None
+        if city != self.city:
+            self.city, self.location = city, None
+        self.units = units
+        self.refresh()
+
     def refresh(self):
         if self._busy:
+            self._again = True  # mudou a config no meio de uma busca
             return
         self._busy = True
         threading.Thread(target=self._work, daemon=True).start()
@@ -100,6 +110,7 @@ class Weather:
             lat, lon, name = self.location
             q = urllib.parse.urlencode({
                 "latitude": lat, "longitude": lon, "timezone": "auto", "forecast_days": 5,
+                "temperature_unit": self.units,
                 "current": "temperature_2m,apparent_temperature,relative_humidity_2m,"
                            "weather_code,is_day,wind_speed_10m",
                 "daily": "weather_code,temperature_2m_max,temperature_2m_min,"
@@ -108,9 +119,16 @@ class Weather:
             result = Forecast(_get_json("https://api.open-meteo.com/v1/forecast?" + q), name)
         except Exception as e:  # sem rede, API fora etc.: tenta de novo no próximo ciclo
             print(f"[island] clima indisponível: {e}")
+        GLib.idle_add(self._done, result)
+
+    def _done(self, result):
         self._busy = False
-        if result:
-            GLib.idle_add(lambda: self.on_update(result) and False)
+        if self._again:
+            self._again = False
+            self.refresh()  # descarta o resultado antigo e busca de novo
+        elif result:
+            self.on_update(result)
+        return False
 
     def _locate(self):
         if self.city:

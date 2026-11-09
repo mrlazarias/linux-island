@@ -3,7 +3,6 @@
 
 Mostra hora, data, clima e o Spotify; expande ao passar o mouse.
 """
-import argparse
 import os
 import sys
 import time
@@ -21,8 +20,10 @@ except (ValueError, ImportError):
     sys.exit("gtk-layer-shell não encontrado. Rode pelo run.sh ou instale "
              "gir1.2-gtklayershell-0.1")
 
-from gi.repository import Gdk, GdkPixbuf, GLib, Gtk  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
+from config import Config, accent_tuple, build_css, rgba  # noqa: E402
+from settings import Settings  # noqa: E402
 from spotify import Spotify  # noqa: E402
 from views import Compact, Expanded  # noqa: E402
 from weather import Weather  # noqa: E402
@@ -35,16 +36,21 @@ DEBUG = bool(os.environ.get("ISLAND_DEBUG"))
 def log(*a):
     if DEBUG:
         print(f"[island {time.monotonic():.2f}]", *a, flush=True)
+
+
+APP_ID = "io.github.mrlazarias.LinuxIsland"
 TRANSITION_MS = 320
-HOVER_DELAY_MS = 120   # evita abrir só de passar o mouse pelo painel
 COLLAPSE_DELAY_MS = 700  # tolera leaves espúrios do compositor
 PEEK_MS = 3000         # quanto tempo abre sozinha quando a faixa muda
 
 
 class Island(Gtk.Window):
-    def __init__(self, args):
+    def __init__(self, app, cfg):
         super().__init__(title="linux-island")
-        self._setup_surface(args)
+        self.app = app
+        self.cfg = cfg
+        self._art_accent = None
+        self._setup_surface()
         self.expanded = False
         self.hovered = False
         self._timers = {}
@@ -57,19 +63,19 @@ class Island(Gtk.Window):
         self.player = Spotify(self._on_presence, self._on_track,
                               self._on_status, self._on_art)
         self._build()
-        self._tick_clock()
+        self.weather = Weather(self._on_weather, cfg["city"], cfg["units"])
+        self._apply()
+        cfg.connect(self._apply)
         self.show_all()
-        self.weather = Weather(self._on_weather, args.city)
         GLib.timeout_add(250, self._tick_music)
         GLib.timeout_add(1000, self._tick_clock)
 
     # --- superfície layer-shell ----------------------------------------
-    def _setup_surface(self, args):
+    def _setup_surface(self):
         GtkLayerShell.init_for_window(self)
         GtkLayerShell.set_namespace(self, "linux-island")
         GtkLayerShell.set_layer(self, GtkLayerShell.Layer.OVERLAY)
         GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.TOP, True)
-        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, args.margin)
         # -1: ignora a zona exclusiva do painel e fica por cima dele, no lugar do relógio
         GtkLayerShell.set_exclusive_zone(self, -1)
         GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.NONE)
@@ -83,6 +89,44 @@ class Island(Gtk.Window):
         css.load_from_path(os.path.join(HERE, "style.css"))
         Gtk.StyleContext.add_provider_for_screen(
             Gdk.Screen.get_default(), css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        # cores e cantos vindos da configuração, por cima do style.css
+        self.dyn_css = Gtk.CssProvider()
+        Gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(), self.dyn_css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION + 1)
+
+    # --- configuração ---------------------------------------------------
+    def _apply(self, key=None):
+        """Aplica a configuração inteira (key=None) ou só o que mudou."""
+        cfg = self.cfg
+        look = ("bg_color", "text_color", "border", "radius_expanded")
+        if key is None or key in look:
+            self.dyn_css.load_from_data(build_css(cfg).encode())
+            fg = rgba(cfg["text_color"])
+            self.full.progress.fg = (fg.red, fg.green, fg.blue)
+            self.full.progress.queue_draw()
+        if key is None or key in ("accent_auto", "accent_color"):
+            self._apply_accent()
+        if key is None or key == "clock_24h":
+            self._minute = None
+            self._tick_clock()
+        if key is None or key in ("show_date", "show_weather"):
+            self.compact.set_visibility(cfg["show_date"], cfg["show_weather"])
+        if key in ("city", "units"):
+            self.weather.configure(cfg["city"], cfg["units"])
+        if key is None or key == "margin_top":
+            GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP, cfg["margin_top"])
+        self._follow_size()
+
+    def _apply_accent(self):
+        if self.cfg["accent_auto"] and self._art_accent:
+            accent = self._art_accent
+        elif self.cfg["accent_auto"]:
+            accent = accent_from_pixbuf(None)
+        else:
+            accent = accent_tuple(self.cfg["accent_color"])
+        for w in (self.compact.eq, self.full.eq, self.full.progress):
+            w.accent = accent
+            w.queue_draw()
 
     # --- layout ---------------------------------------------------------
     def _build(self):
@@ -175,8 +219,8 @@ class Island(Gtk.Window):
         if self.hovered:
             self._cancel("peek")
             self._cancel("collapse")
-            if not self.expanded and not self._closed_by_click:
-                self._later("expand", HOVER_DELAY_MS,
+            if not self.expanded and not self._closed_by_click and self.cfg["hover_expand"]:
+                self._later("expand", self.cfg["hover_delay_ms"],
                             lambda: self._pointer_inside() and self.set_expanded(True))
         else:
             self._cancel("expand")
@@ -203,14 +247,30 @@ class Island(Gtk.Window):
                 self._cancel(t)
             self._closed_by_click = self.expanded
             self.set_expanded(not self.expanded)
-        elif ev.button == 3:  # botão direito: traz o Spotify para frente
-            self.player.raise_window()
+        elif ev.button == 3:
+            self._menu(ev)
         elif ev.button == 2:
             self.player.play_pause()
         return False
 
+    def _menu(self, ev):
+        menu = Gtk.Menu()
+        items = [("Configurações…", self.app.open_settings)]
+        if self.player.proxy:
+            items.append(("Abrir o Spotify", self.player.raise_window))
+        items += [(None, None), ("Sair", self.app.quit)]
+        for text, cb in items:
+            item = Gtk.SeparatorMenuItem() if text is None else Gtk.MenuItem(label=text)
+            if cb:
+                item.connect("activate", lambda _i, f=cb: f())
+            menu.append(item)
+        menu.attach_to_widget(self)
+        menu.show_all()
+        menu.popup_at_pointer(ev)
+        self._menu_ref = menu  # mantém vivo enquanto aberto
+
     def _peek(self):
-        if self.hovered:
+        if self.hovered or not self.cfg["peek_on_track"]:
             return
         self.set_expanded(True)
         self._later("peek", PEEK_MS, lambda: self.hovered or self.set_expanded(False))
@@ -220,8 +280,8 @@ class Island(Gtk.Window):
         now = datetime.now()
         if now.minute != self._minute:
             self._minute = now.minute
-            self.compact.set_clock(now)
-            self.full.set_clock(now)
+            self.compact.set_clock(now, self.cfg["clock_24h"])
+            self.full.set_clock(now, self.cfg["clock_24h"])
             self._follow_size()
         return True
 
@@ -258,10 +318,8 @@ class Island(Gtk.Window):
                 print(f"[island] capa inválida: {e.message}")
         self.compact.art.set_source(pb)
         self.full.art.set_source(pb)
-        accent = accent_from_pixbuf(pb)
-        for w in (self.compact.eq, self.full.eq, self.full.progress):
-            w.accent = accent
-            w.queue_draw()
+        self._art_accent = accent_from_pixbuf(pb) if pb else None
+        self._apply_accent()
 
     def _tick_music(self):
         p = self.player
@@ -275,16 +333,48 @@ class Island(Gtk.Window):
         return True
 
 
+class App(Gtk.Application):
+    """Instância única: rodar de novo (ex.: --settings) fala com a que já existe."""
+
+    def __init__(self):
+        super().__init__(application_id=APP_ID,
+                         flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
+        self.island = None
+        self.settings = None
+        self.add_main_option("settings", ord("s"), GLib.OptionFlags.NONE,
+                             GLib.OptionArg.NONE, "Abre as configurações", None)
+        self.add_main_option("city", 0, GLib.OptionFlags.NONE, GLib.OptionArg.STRING,
+                             "Cidade do clima só nesta execução", "CIDADE")
+        self.add_main_option("margin", 0, GLib.OptionFlags.NONE, GLib.OptionArg.INT,
+                             "Distância do topo só nesta execução", "PX")
+
+    def do_command_line(self, cmdline):
+        opts = cmdline.get_options_dict().end().unpack()
+        log("command line", opts, "remota" if cmdline.get_is_remote() else "local")
+        if self.island is None:
+            margin = opts.get("margin")
+            cfg = Config({"city": opts.get("city"),
+                          "margin_top": margin if margin is not None and 0 <= margin <= 200
+                          else None})
+            self.island = Island(self, cfg)
+            self.add_window(self.island)
+        if opts.get("settings"):
+            self.open_settings()
+        return 0
+
+    def open_settings(self):
+        log("open_settings", self.settings)
+        if self.settings is None:
+            self.settings = Settings(self.island.cfg, self)
+            self.settings.connect("destroy", lambda *_: setattr(self, "settings", None))
+        self.settings.present()
+
+
 def main():
-    ap = argparse.ArgumentParser(description="Dynamic island para Linux")
-    ap.add_argument("--margin", type=int, default=2, help="distância do topo em px")
-    ap.add_argument("--city", help="cidade para o clima (padrão: detecta pelo IP)")
-    args = ap.parse_args()
-    win = Island(args)
-    win.connect("destroy", Gtk.main_quit)
-    GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, 2, lambda: Gtk.main_quit() or False)   # INT
-    GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, 15, lambda: Gtk.main_quit() or False)  # TERM
-    Gtk.main()
+    app = App()
+    for sig in (2, 15):  # SIGINT, SIGTERM
+        GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, sig, lambda: app.quit() or False)
+    sys.exit(app.run(sys.argv))
 
 
 if __name__ == "__main__":

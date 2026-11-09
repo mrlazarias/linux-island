@@ -108,6 +108,7 @@ class Progress(Gtk.DrawingArea):
         self.on_seek = on_seek
         self.fraction = 0.0
         self.accent = DEFAULT_ACCENT
+        self.fg = (1, 1, 1)
         self._drag = None
         self._hover = False
         self.set_size_request(-1, height)
@@ -160,7 +161,7 @@ class Progress(Gtk.DrawingArea):
         th = 6 if active else 4
         y = (h - th) / 2
         f = self._drag if self._drag is not None else self.fraction
-        cr.set_source_rgba(1, 1, 1, 0.18)
+        cr.set_source_rgba(*self.fg, 0.18)
         rounded_rect(cr, 0, y, w, th, th / 2)
         cr.fill()
         if f > 0:
@@ -168,6 +169,6 @@ class Progress(Gtk.DrawingArea):
             rounded_rect(cr, 0, y, max(th, w * f), th, th / 2)
             cr.fill()
         if active:
-            cr.set_source_rgb(1, 1, 1)
+            cr.set_source_rgb(*self.fg)
             cr.arc(min(max(w * f, 6), w - 6), h / 2, 6, 0, 2 * math.pi)
             cr.fill()

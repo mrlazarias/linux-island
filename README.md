@@ -28,7 +28,7 @@ Feita para o **COSMIC** (Pop!_OS 24.04), mas deve funcionar em qualquer composit
 | Passar o mouse | expande |
 | Clique esquerdo numa área livre | abre ou fecha |
 | Clique do meio | play / pause |
-| Clique direito | traz a janela do Spotify para frente |
+| Clique direito | menu: Configurações, Abrir o Spotify, Sair |
 | Clicar ou arrastar na barra | pula para o ponto da música |
 
 ## Instalação
@@ -60,10 +60,20 @@ for f in *.deb; do dpkg-deb -x "$f" ../root; done
 
 </details>
 
-### Opções
+## Configurações
+
+Clique com o botão direito na ilha e escolha **Configurações…**, ou rode `./run.sh --settings`. Se a ilha já estiver aberta, o comando só abre a janela, sem criar uma segunda ilha. Tudo é aplicado na hora e salvo em `~/.config/linux-island/config.json`.
+
+| Aba | O que dá para mudar |
+|---|---|
+| **Aparência** | temas prontos (Clássico, Vidro, Claro, Spotify, Grafite), cor de fundo com transparência, cor do texto, cor de destaque fixa ou automática pela capa, arredondamento, borda |
+| **Relógio e clima** | 12h/24h, data na pílula, cidade (vazio = detectar pelo IP), °C ou °F, clima na pílula |
+| **Comportamento** | expandir no hover, atraso do hover, abrir quando a música muda, distância do topo, iniciar com a sessão |
+
+As opções de linha de comando valem só para aquela execução e não alteram o arquivo:
 
 ```bash
-./run.sh --city "Belo Horizonte"   # cidade do clima (padrão: detecta pelo IP)
+./run.sh --city "Belo Horizonte"   # cidade do clima
 ./run.sh --margin 2                # distância do topo da tela, em px
 ```
 
@@ -79,6 +89,8 @@ printf 'Some([])' > $P/plugins_center
 
 ### Iniciar com a sessão
 
+Ligue em *Configurações → Comportamento → Iniciar com a sessão*, ou crie o arquivo à mão:
+
 ```bash
 cat > ~/.config/autostart/linux-island.desktop <<EOF
 [Desktop Entry]
@@ -93,7 +105,9 @@ EOF
 
 | Arquivo | Papel |
 |---|---|
-| `island.py` | janela layer-shell (camada overlay, ancorada no topo), hover, cliques, animações de tamanho |
+| `island.py` | aplicação de instância única e janela layer-shell (camada overlay, ancorada no topo): hover, cliques, menu, animações de tamanho |
+| `config.py` | configurações com padrões e validação; gera o CSS das cores |
+| `settings.py` | janela de configurações |
 | `views.py` | conteúdo dos modos compacto e expandido |
 | `widgets.py` | capa arredondada, equalizador e barra de progresso desenhados com cairo |
 | `spotify.py` | cliente MPRIS (`org.mpris.MediaPlayer2.spotify`), posição interpolada e download da capa |
@@ -117,10 +131,11 @@ Para depurar, rode com `ISLAND_DEBUG=1 ./run.sh` e acompanhe os eventos no termi
 
 ## Roadmap
 
+- [x] Menu de configurações (cores, temas, cidade, unidades, comportamento)
 - [ ] Outros players MPRIS (Firefox, VLC, mpv…)
 - [ ] Notificações na ilha
 - [ ] Volume pela rolagem do mouse
-- [ ] Idioma e formato de hora configuráveis
+- [ ] Idioma configurável
 - [ ] Calendário no modo expandido
 
 ## Licença
