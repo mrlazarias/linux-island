@@ -67,8 +67,16 @@ def revealer(child, transition):
     return r
 
 
+def clip(text, n):
+    """Corta no Python: a janela segue o tamanho mínimo, então ellipsize não serve aqui."""
+    return text if len(text) <= n else text[:n - 1].rstrip() + "…"
+
+
 class Compact(Gtk.Box):
-    """Pílula no painel: [capa] hora · data · clima [equalizador]."""
+    """Pílula no painel: [capa] hora · data · clima [equalizador].
+
+    Na troca de faixa, o miolo vira "título · artista" por alguns segundos.
+    """
 
     HEIGHT = 28
 
@@ -121,9 +129,37 @@ class Compact(Gtk.Box):
         dev_box.add(self.dev_icon)
         self.dev_rev = revealer(dev_box, Gtk.RevealerTransitionType.SLIDE_LEFT)
 
-        for w in (self.art_rev, self.clock, self.date_rev, self.w_rev, self.vol_rev,
-                  self.dev_rev, self.eq_rev):
+        info = Gtk.Box()
+        for w in (self.clock, self.date_rev, self.w_rev, self.vol_rev, self.dev_rev):
+            info.pack_start(w, False, False, 0)
+
+        track = Gtk.Box(spacing=6)
+        self.t_title = label("clock")
+        self.t_sep = label("dim")
+        self.t_sep.set_text("·")
+        self.t_artist = label("dim")
+        for w in (self.t_title, self.t_sep, self.t_artist):
+            track.pack_start(w, False, False, 0)
+
+        self.middle = Gtk.Stack()
+        self.middle.set_homogeneous(False)
+        self.middle.set_interpolate_size(True)
+        self.middle.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
+        self.middle.set_transition_duration(320)
+        self.middle.add_named(info, "info")
+        self.middle.add_named(track, "track")
+
+        for w in (self.art_rev, self.middle, self.eq_rev):
             self.pack_start(w, False, False, 0)
+
+    def set_track_text(self, title, artist):
+        self.t_title.set_text(clip(title, 32))
+        self.t_artist.set_text(clip(artist, 22))
+        self.t_sep.set_visible(bool(artist))
+        self.t_artist.set_visible(bool(artist))
+
+    def show_track(self, visible):
+        self.middle.set_visible_child_name("track" if visible else "info")
 
     def set_clock(self, now, h24=True):
         self.clock.set_text(clock_text(now, h24))
