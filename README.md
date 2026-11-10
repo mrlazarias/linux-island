@@ -20,6 +20,7 @@ Feita para o **COSMIC** (Pop!_OS 24.04). Veja a [compatibilidade](#compatibilida
   - o equalizador e a barra de progresso usam a cor predominante da capa;
   - na troca de faixa, a pílula se estica na horizontal mostrando título e artista por alguns segundos e volta ao relógio;
   - opcional: **playlist** (ou álbum, artista, Músicas Curtidas) e **dispositivo** onde está tocando (celular, caixa de som, TV…). Quando toca em outro aparelho, aparece um ícone dele na pílula.
+- **Notificações na ilha**: quando um app notifica, a pílula se estica por alguns segundos mostrando o ícone do app, o título e o texto. Se chegarem várias, elas entram em fila, e clicar abre o app. Tem "não perturbe", duração ajustável, opção de esconder o texto e lista de apps ignorados.
 - **Lembrete de beber água**: uma página só para isso na ilha expandida.
   - Anel com o progresso da meta do dia, uma gota por copo, botão **+copo** e desfazer.
   - Na hora de beber, a pílula mostra **"Hora de beber água"** com a borda azul pulsando, e passar o mouse ou clicar abre direto na página da água, com o botão **Adiar**.
@@ -40,6 +41,7 @@ Feita para o **COSMIC** (Pop!_OS 24.04). Veja a [compatibilidade](#compatibilida
 | Clique esquerdo numa área livre | abre ou fecha |
 | Clique do meio | play / pause |
 | Rolar sobre a ilha | volume do Spotify (±5%) |
+| Clicar numa notificação na pílula | abre o app que notificou |
 | Clique direito | menu: Configurações, Abrir o Spotify, Sair |
 | Clicar ou arrastar na barra | pula para o ponto da música |
 | Arrastar para o lado (com a ilha aberta) | troca de página: música/clima ↔ água ↔ agenda |
@@ -99,6 +101,7 @@ Clique com o botão direito na ilha e escolha **Configurações…**, ou rode `.
 | **Comportamento** | expandir no hover, atraso do hover, mostrar a música nova na pílula, volume pela rolagem, distância do topo, iniciar com a sessão |
 
 | **Agenda** | entrar/sair da conta Google, mostrar agenda, dias à frente, avisar na pílula, quanto antes, som, volume |
+| **Notificações** | mostrar na pílula, não perturbe, duração, mostrar o texto, apps ignorados |
 | **Água** | ligar/desligar, intervalo, adiar por, meta diária, tamanho do copo, horário de início e fim, aviso sonoro (som, volume, testar), notificação do sistema, zerar hoje |
 | **Spotify** | Client ID do seu app, conectar e desconectar a conta |
 
@@ -179,6 +182,7 @@ EOF
 | `secret_store.py` | guarda segredos (o token do Google) no chaveiro do sistema |
 | `agenda_view.py` | página "Agenda" e o aviso de reunião na pílula |
 | `pages.py` | páginas da ilha expandida e prioridade do miolo da pílula |
+| `notifications.py` | observa as notificações do sistema e as mostra na pílula |
 | `water.py` | lembrete de água: estado do dia, agenda e notificação |
 | `water_view.py` | página "Hidratação" (anel, gotas, botões) |
 | `settings_pages.py` | abas Água e Spotify das configurações |
@@ -194,6 +198,7 @@ Algumas particularidades descobertas no caminho:
 - **Tamanho da janela:** janelas GTK3 não encolhem sozinhas. Durante as animações, a janela acompanha o tamanho do conteúdo a cada frame.
 - **Hover:** no Wayland o GTK3 gera eventos `enter`/`leave` "fantasmas" ao cruzar as sub-janelas internas. Por isso o hover consulta onde o ponteiro realmente está.
 - **Lembrete depois da suspensão:** a agenda é recalculada a cada 30 s pelo relógio de parede. Um timeout longo do GLib usa o relógio monotônico, que para durante a suspensão, e o lembrete chegaria horas atrasado.
+- **Notificações de outros apps:** o COSMIC continua sendo o servidor de notificações. A ilha só observa as chamadas `Notify` no barramento, numa conexão em modo monitor. As chamadas observadas precisam ser consumidas no filtro: se seguissem, o GDBus responderia "método desconhecido", e o barramento desconecta monitores que enviam qualquer coisa.
 - **Notificações:** no COSMIC o `GNotification` falha sem avisar, porque escolhe um backend que não existe lá. A notificação fala direto com `org.freedesktop.Notifications`.
 - **Localização:** o GeoClue não responde sem um agente, como no COSMIC. Por isso a cidade vem do IP, ou de `--city`.
 
@@ -205,6 +210,7 @@ Para depurar, rode com `ISLAND_DEBUG=1 ./run.sh` e acompanhe os eventos no termi
 - As coordenadas são enviadas ao [Open-Meteo](https://open-meteo.com/) para buscar a previsão.
 - Se você conectar a Web API, o login é OAuth PKCE (sem segredo) e pede só permissão de leitura: `user-read-playback-state`, `playlist-read-private` e `playlist-read-collaborative`. O token fica em `~/.config/linux-island/spotify-token.json`, legível só pelo seu usuário. Para revogar, use **Desconectar** ou acesse [spotify.com/account/apps](https://www.spotify.com/account/apps/).
 - Se você entrar com o Google, o login é OAuth com PKCE e só permissão de leitura (`calendar.readonly`). O token fica no chaveiro do sistema (libsecret), ou num arquivo legível só pelo seu usuário quando não houver chaveiro. **Sair da conta** apaga o token e revoga o acesso no Google.
+- As notificações de outros apps só são mostradas na pílula: não ficam guardadas em lugar nenhum e não saem do seu computador.
 - O contador de água fica só no seu computador, em `~/.local/state/linux-island/water.json`.
 - As capas são baixadas do CDN do Spotify e guardadas em `~/.cache/linux-island/art/`.
 
@@ -215,7 +221,7 @@ Para depurar, rode com `ISLAND_DEBUG=1 ./run.sh` e acompanhe os eventos no termi
 - [x] Lembrete de beber água (configurável)
 - [x] Agenda do Google com aviso de reunião
 - [ ] Outros players MPRIS (Firefox, VLC, mpv…)
-- [ ] Notificações na ilha
+- [x] Notificações na ilha
 - [x] Volume (barra, mudo e rolagem do mouse)
 - [ ] Idioma configurável
 

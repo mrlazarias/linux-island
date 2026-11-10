@@ -110,6 +110,8 @@ class InputMixin:
         if self.expanded and abs(dx) >= SWIPE_PX and abs(dx) > abs(dy):
             self.turn_page(1 if dx < 0 else -1)  # arrastar para a esquerda = próxima
         elif abs(dx) <= CLICK_SLOP_PX and abs(dy) <= CLICK_SLOP_PX:
+            if not self.expanded and self.open_notification_app():
+                return False  # clique numa notificação abre o app que notificou
             for t in ("expand", "collapse"):
                 self._cancel(t)
             self._closed_by_click = self.expanded

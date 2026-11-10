@@ -28,7 +28,8 @@ from config import Config, accent_tuple, build_css, rgba  # noqa: E402
 from settings import Settings  # noqa: E402
 from spotify import Spotify  # noqa: E402
 from spotify_web import SpotifyWeb  # noqa: E402
-from views import Compact, Expanded, label  # noqa: E402
+from notifications import NotificationWatcher  # noqa: E402
+from views import Compact, Expanded, NotifPill, label  # noqa: E402
 from water import Notifier, Water, play_sound  # noqa: E402
 from water_view import DropIcon, WaterPage  # noqa: E402
 from agenda import Agenda  # noqa: E402
@@ -73,6 +74,8 @@ class Island(PagesMixin, InputMixin, Gtk.Window):
         self.web = SpotifyWeb(cfg["spotify_client_id"], self._on_playback, self._on_web_status)
         if not self.web.connected:
             self.web_status = ("Não conectado", False)
+        self._notif_queue, self._notif_current = [], None
+        self.notifications = NotificationWatcher(self._on_notification)
         self._apply()
         cfg.connect(self._apply)
         self.show_all()
@@ -195,6 +198,8 @@ class Island(PagesMixin, InputMixin, Gtk.Window):
         self.compact.middle.add_named(alert, "water")
         self.meeting_pill = MeetingPill()
         self.compact.middle.add_named(self.meeting_pill, "meeting")
+        self.notif_pill = NotifPill()
+        self.compact.middle.add_named(self.notif_pill, "notif")
 
     # --- tamanho --------------------------------------------------------
     def _follow_size(self):
@@ -222,6 +227,8 @@ class Island(PagesMixin, InputMixin, Gtk.Window):
         self.stack.set_visible_child_name("expanded" if value else "compact")
         if value:  # ao expandir, a pílula volta ao relógio para quando fechar
             self._cancel("track_peek")
+            self._cancel("notif_peek")
+            self._notif_queue, self._notif_current = [], None
             self._refresh_middle()
             if self._alert_page() != "home":
                 self.set_page(self._alert_page())
