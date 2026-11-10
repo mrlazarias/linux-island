@@ -24,6 +24,8 @@ from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk  # noqa: E402
 
 from pages import TRANSITION_MS, PagesMixin  # noqa: E402
 from pointer import InputMixin, log  # noqa: E402
+import i18n  # noqa: E402
+from i18n import _  # noqa: E402
 from config import Config, accent_tuple, build_css, rgba  # noqa: E402
 from settings import Settings  # noqa: E402
 from spotify import Spotify  # noqa: E402
@@ -73,7 +75,7 @@ class Island(PagesMixin, InputMixin, Gtk.Window):
         self.web_status = ("Conectado", True)
         self.web = SpotifyWeb(cfg["spotify_client_id"], self._on_playback, self._on_web_status)
         if not self.web.connected:
-            self.web_status = ("Não conectado", False)
+            self.web_status = (_("Não conectado"), False)
         self._notif_queue, self._notif_current = [], None
         self.notifications = NotificationWatcher(self._on_notification)
         self._apply()
@@ -191,7 +193,7 @@ class Island(PagesMixin, InputMixin, Gtk.Window):
         alert = Gtk.Box(spacing=8)
         alert.pack_start(DropIcon(15), False, False, 0)
         msg = label("clock")
-        msg.set_text("Hora de beber água")
+        msg.set_text(_("Hora de beber água"))
         self.alert_amount = label("dim")
         alert.pack_start(msg, False, False, 0)
         alert.pack_start(self.alert_amount, False, False, 0)
@@ -336,11 +338,11 @@ class App(Gtk.Application):
         self.island = None
         self.settings = None
         self.add_main_option("settings", ord("s"), GLib.OptionFlags.NONE,
-                             GLib.OptionArg.NONE, "Abre as configurações", None)
+                             GLib.OptionArg.NONE, _("Abre as configurações"), None)
         self.add_main_option("city", 0, GLib.OptionFlags.NONE, GLib.OptionArg.STRING,
-                             "Cidade do clima só nesta execução", "CIDADE")
+                             _("Cidade do clima só nesta execução"), "CIDADE")
         self.add_main_option("margin", 0, GLib.OptionFlags.NONE, GLib.OptionArg.INT,
-                             "Distância do topo só nesta execução", "PX")
+                             _("Distância do topo só nesta execução"), "PX")
         self.notifier = Notifier(self._notif_action)
 
     def notify_water(self, consumed, goal):
@@ -371,6 +373,12 @@ class App(Gtk.Application):
             self.open_settings()
         return 0
 
+    def restart(self):
+        """Reabre a ilha (ex.: para trocar o idioma). O ambiente do run.sh é herdado."""
+        log("reiniciando")
+        sys.stdout.flush()
+        os.execv(sys.executable, [sys.executable, os.path.join(HERE, "island.py")])
+
     def open_settings(self, page=None):
         log("open_settings", self.settings)
         if self.settings is None:
@@ -378,13 +386,15 @@ class App(Gtk.Application):
             self.settings = Settings(isl.cfg, self, isl.web, isl.water, isl.agenda)
             self.settings.set_spotify_status(*isl.web_status)
             self.settings.set_agenda_status(*isl.agenda.status)
-            self.settings.connect("destroy", lambda *_: setattr(self, "settings", None))
+            self.settings.connect("destroy", lambda *_a: setattr(self, "settings", None))
         if page:
             self.settings.show_page(page)
         self.settings.present()
 
 
 def main():
+    # o idioma vale para tudo, até as ajudas da linha de comando: escolhe antes de criar a UI
+    i18n.setup(Config()["language"])
     app = App()
     for sig in (2, 15):  # SIGINT, SIGTERM
         GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, sig, lambda: app.quit() or False)

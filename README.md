@@ -10,7 +10,7 @@ Feita para o **COSMIC** (Pop!_OS 24.04). Veja a [compatibilidade](#compatibilida
 
 ## Recursos
 
-- **Relógio e data** em português, em 24h.
+- **Relógio e data** em 24h ou 12h, no idioma escolhido.
 - **Clima atual**: temperatura, condição, máxima, mínima e sensação térmica, via [Open-Meteo](https://open-meteo.com/), sem chave de API.
 - **Previsão de 5 dias** com a chance de chuva.
 - **Spotify** via MPRIS/D-Bus:
@@ -30,6 +30,7 @@ Feita para o **COSMIC** (Pop!_OS 24.04). Veja a [compatibilidade](#compatibilida
 - **Agenda do Google**, com contas pessoais e corporativas, somente leitura: uma página com os eventos de hoje e dos próximos dias, e clicar num evento abre o Meet ou o evento no Calendar.
   - Antes de cada reunião, a pílula mostra **"Reunião · em 8 min"** com a borda violeta pulsando e um aviso sonoro.
   - Ao abrir a ilha, aparece o cartão da reunião com **Entrar** e **Dispensar**.
+- **Em português, inglês ou espanhol**: a ilha segue o idioma do sistema, ou o que você escolher, incluindo datas, clima e todas as telas.
 - **Animações**: a pílula muda de tamanho e de arredondamento ao expandir, e a capa e o equalizador deslizam pra dentro quando a música começa.
 - **Leve**: Python + GTK3, sem polling de metadados. O Spotify avisa por D-Bus quando algo muda.
 
@@ -98,7 +99,7 @@ Clique com o botão direito na ilha e escolha **Configurações…**, ou rode `.
 |---|---|
 | **Aparência** | temas prontos (Clássico, Vidro, Claro, Spotify, Grafite), cor de fundo com transparência, cor do texto, cor de destaque fixa ou automática pela capa, arredondamento, borda |
 | **Relógio e clima** | 12h/24h, data na pílula, cidade (vazio = detectar pelo IP), °C ou °F, clima na pílula |
-| **Comportamento** | expandir no hover, atraso do hover, mostrar a música nova na pílula, volume pela rolagem, distância do topo, iniciar com a sessão |
+| **Comportamento** | expandir no hover, atraso do hover, mostrar a música nova na pílula, volume pela rolagem, distância do topo, idioma, iniciar com a sessão |
 
 | **Agenda** | entrar/sair da conta Google, mostrar agenda, dias à frente, avisar na pílula, quanto antes, som, volume |
 | **Notificações** | mostrar na pílula, não perturbe, duração, mostrar o texto, apps ignorados |
@@ -183,6 +184,7 @@ EOF
 | `agenda_view.py` | página "Agenda" e o aviso de reunião na pílula |
 | `pages.py` | páginas da ilha expandida e prioridade do miolo da pílula |
 | `notifications.py` | observa as notificações do sistema e as mostra na pílula |
+| `i18n.py`, `locale_en.py`, `locale_es.py` | idioma da interface e as traduções |
 | `water.py` | lembrete de água: estado do dia, agenda e notificação |
 | `water_view.py` | página "Hidratação" (anel, gotas, botões) |
 | `settings_pages.py` | abas Água e Spotify das configurações |
@@ -223,7 +225,7 @@ Para depurar, rode com `ISLAND_DEBUG=1 ./run.sh` e acompanhe os eventos no termi
 - [ ] Outros players MPRIS (Firefox, VLC, mpv…)
 - [x] Notificações na ilha
 - [x] Volume (barra, mudo e rolagem do mouse)
-- [ ] Idioma configurável
+- [x] Idioma configurável (português, inglês e espanhol)
 
 ## Licença
 

@@ -11,13 +11,13 @@ from datetime import datetime, timedelta
 
 from gi.repository import GLib
 
-from google_calendar import AuthError, GoogleCalendar
+from google_calendar import AuthError, GoogleCalendar, MissingAppError
+from i18n import _, weekday
 
 POLL_S = 5 * 60
 TICK_S = 30
 GRACE = timedelta(minutes=5)  # o alerta continua um pouco depois do início
 SKIP_TYPES = {"workingLocation"}
-DIAS = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
 
 
 # --- lógica pura -----------------------------------------------------------------
@@ -54,12 +54,12 @@ def normalize(items, now):
             continue
         try:
             start, all_day = _parse_when(it.get("start") or {}, now)
-            end, _ = _parse_when(it.get("end") or it.get("start") or {}, now)
+            end, _allday = _parse_when(it.get("end") or it.get("start") or {}, now)
         except (KeyError, ValueError, TypeError):
             continue
         link = it.get("htmlLink")
         events.append({
-            "id": it.get("id", ""), "title": (it.get("summary") or "(sem título)").strip(),
+            "id": it.get("id", ""), "title": (it.get("summary") or _("(sem título)")).strip(),
             "start": start, "end": end, "all_day": all_day, "meet": _meet_link(it),
             "html": link if isinstance(link, str) and link.startswith("https://") else None,
         })
@@ -85,22 +85,23 @@ def alert_key(ev):
 
 def countdown(now, ev):
     if ev["all_day"]:
-        return "dia todo"
+        return _("dia todo")
     if now >= ev["start"]:
-        return "agora" if now < ev["end"] else "terminou"
+        return _("agora") if now < ev["end"] else _("terminou")
     mins = math.ceil((ev["start"] - now).total_seconds() / 60)
     if mins < 60:
-        return f"em {mins} min"
+        return _("em {n} min").format(n=mins)
     h, m = divmod(mins, 60)
-    return f"em {h} h {m:02d}" if m else f"em {h} h"
+    return (_("em {h} h {m:02d}").format(h=h, m=m) if m
+            else _("em {h} h").format(h=h))
 
 
 def day_label(day, today):
     if day == today:
-        return "Hoje"
+        return _("Hoje")
     if day == today + timedelta(days=1):
-        return "Amanhã"
-    return f"{DIAS[day.weekday()]} {day.day:02d}/{day.month:02d}"
+        return _("Amanhã")
+    return f"{weekday(day.weekday(), True)} {day.day:02d}/{day.month:02d}"
 
 
 def upcoming(now, events, days):
@@ -135,7 +136,8 @@ class Agenda:
         self._sounded = set()
         self._busy = False
         self._poll_id = None
-        self.status = ("Conectado", True) if self.google.connected else ("Não conectado", False)
+        self.status = ((_("Conectado"), True) if self.google.connected
+                       else (_("Não conectado"), False))
         GLib.timeout_add_seconds(TICK_S, lambda: self.tick() or True)
         if self.google.connected:
             self._start_polling()
@@ -150,19 +152,19 @@ class Agenda:
 
     # conexão
     def login(self):
-        self._set_status("Aguardando login no navegador…", False)
+        self._set_status(_("Aguardando login no navegador…"), False)
 
         def work():
             try:
                 self.google.login()
                 GLib.idle_add(self._logged_in)
             except (AuthError, urllib.error.URLError, OSError, ValueError, KeyError) as e:
-                GLib.idle_add(lambda: self._set_status(f"Falha no login: {e}", False) and False)
+                GLib.idle_add(lambda: self._set_status(_("Falha no login: {erro}").format(erro=e), False) and False)
 
         threading.Thread(target=work, daemon=True).start()
 
     def _logged_in(self):
-        self._set_status("Conectado", True)
+        self._set_status(_("Conectado"), True)
         self._start_polling()
         return False
 
@@ -170,7 +172,7 @@ class Agenda:
         self.google.disconnect()
         self._stop_polling()
         self.events = []
-        self._set_status("Desconectado", False)
+        self._set_status(_("Desconectado"), False)
         self.on_change()
         self.tick()
 
@@ -197,6 +199,8 @@ class Agenda:
             items, err = None, None
             try:
                 items = self.google.fetch_events(start, end)
+            except MissingAppError as e:
+                err = ("noapp", str(e))
             except AuthError as e:
                 err = ("auth", str(e))
             except (urllib.error.URLError, OSError, ValueError) as e:
@@ -207,19 +211,19 @@ class Agenda:
 
     def _done(self, items, err):
         self._busy = False
-        if err and err[0] == "auth":
+        if err and err[0] in ("auth", "noapp"):
             self._stop_polling()
             self.events = []
-            if "credenciais" in err[1]:  # token guardado, mas o app não está configurado
-                self._set_status("Credenciais do app do Google não configuradas", False)
+            if err[0] == "noapp":  # token guardado, mas o app não está configurado
+                self._set_status(_("Credenciais do app do Google não configuradas"), False)
             else:
-                self._set_status("Reconecte sua conta do Google", False)
+                self._set_status(_("Reconecte sua conta do Google"), False)
         elif err:
             print(f"[island] agenda indisponível: {err[1]}")  # mantém o que já tinha
         else:
             self.events = normalize(items, datetime.now().astimezone())
             if not self.status[1]:
-                self._set_status("Conectado", True)
+                self._set_status(_("Conectado"), True)
         self.on_change()
         self.tick()
         return False

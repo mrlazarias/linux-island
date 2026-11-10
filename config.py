@@ -72,6 +72,8 @@ SCHEMA = {
     "notif_duration_s": (5, _int_range(2, 15)),
     "notif_show_body": (True, _is_bool),
     "notif_ignore": ("Spotify", lambda v: isinstance(v, str) and len(v) <= 500),
+    # idioma da interface ("auto" segue o sistema)
+    "language": ("auto", _choice("auto", "pt", "en", "es")),
     # comportamento
     "hover_expand": (True, _is_bool),
     "peek_on_track": (True, _is_bool),

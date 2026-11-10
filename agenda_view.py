@@ -4,6 +4,7 @@ from datetime import datetime
 from gi.repository import Gio, Gtk
 
 from agenda import countdown, upcoming
+from i18n import _
 from views import clip, icon, label
 
 MAX_ROWS = 7
@@ -26,7 +27,7 @@ def pill_button(text, icon_name, cb, cls="water-main"):
     btn.add(box)
     btn.set_can_focus(False)
     btn.get_style_context().add_class(cls)
-    btn.connect("clicked", lambda *_: cb())
+    btn.connect("clicked", lambda *_a: cb())
     return btn
 
 
@@ -62,7 +63,7 @@ class AgendaPage(Gtk.Box):
         head = Gtk.Box(spacing=8)
         head.pack_start(icon(CAL_ICON, 16), False, False, 0)
         title = label("title")
-        title.set_text("Agenda")
+        title.set_text(_("Agenda"))
         head.pack_start(title, False, False, 0)
         self.status = label("dim small", 1.0)
         head.pack_end(self.status, True, True, 0)
@@ -79,17 +80,17 @@ class AgendaPage(Gtk.Box):
         a = self.agenda
         if not a.connected:
             self.status.set_text("")
-            self._empty("Entre com sua conta do Google para ver seus eventos.",
-                        pill_button("Configurar", "preferences-system-symbolic",
+            self._empty(_("Entre com sua conta do Google para ver seus eventos."),
+                        pill_button(_("Configurar"), "preferences-system-symbolic",
                                     self.open_settings, "water-snooze"))
         else:
-            self.status.set_text(datetime.now().strftime("atualizado %H:%M") if a.status[1]
-                                 else "sem conexão")
+            self.status.set_text(_("atualizado {hora}").format(hora=f"{datetime.now():%H:%M}")
+                                 if a.status[1] else _("sem conexão"))
             groups = upcoming(now, a.events, cfg["agenda_days"])
             if a.alert:
                 self.body.pack_start(self._next_card(a.alert, now), False, False, 4)
             if not groups:
-                self._empty("Nada na agenda nos próximos dias.", None)
+                self._empty(_("Nada na agenda nos próximos dias."), None)
             rows = 0
             for day, events in groups:
                 if rows >= MAX_ROWS:
@@ -135,9 +136,9 @@ class AgendaPage(Gtk.Box):
         actions.set_margin_end(10)
         actions.set_valign(Gtk.Align.CENTER)
         if ev["meet"]:
-            actions.pack_start(pill_button("Entrar", VIDEO_ICON, lambda: (
+            actions.pack_start(pill_button(_("Entrar"), VIDEO_ICON, lambda: (
                 open_url(ev["meet"]), self.agenda.dismiss())), False, False, 0)
-        actions.pack_start(pill_button("Dispensar", None, self.agenda.dismiss, "water-snooze"),
+        actions.pack_start(pill_button(_("Dispensar"), None, self.agenda.dismiss, "water-snooze"),
                            False, False, 0)
         card.pack_start(actions, False, False, 0)
         return card
@@ -150,7 +151,7 @@ class AgendaPage(Gtk.Box):
         row = Gtk.Box(spacing=10)
         when = label("time")
         when.set_width_chars(6)
-        when.set_text("dia todo" if ev["all_day"] else f"{ev['start']:%H:%M}")
+        when.set_text(_("dia todo") if ev["all_day"] else f"{ev['start']:%H:%M}")
         title = label("small")
         title.set_text(clip(ev["title"], 34))
         row.pack_start(when, False, False, 0)
@@ -162,5 +163,5 @@ class AgendaPage(Gtk.Box):
         if ev["meet"]:
             row.pack_start(icon(VIDEO_ICON, 13), False, False, 0)
         btn.add(row)
-        btn.connect("clicked", lambda *_: open_url(ev["meet"] or ev["html"]))
+        btn.connect("clicked", lambda *_a: open_url(ev["meet"] or ev["html"]))
         return btn

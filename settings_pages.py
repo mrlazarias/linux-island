@@ -5,14 +5,16 @@ self._row, self._switch, self._spin e self._sync de lá.
 """
 from gi.repository import GLib, Gtk
 
+from i18n import _
+
 
 class SettingsPagesMixin:
     def _page_notifications(self):
         scroll, page = self._page()
         intro = Gtk.Label(xalign=0, wrap=True)
-        intro.set_markup("Quando um app manda uma notificação, a pílula se estica por alguns "
+        intro.set_markup(_("Quando um app manda uma notificação, a pílula se estica por alguns "
                          "segundos mostrando quem notificou e o que disse. Clique nela para "
-                         "abrir o app.")
+                         "abrir o app."))
         intro.get_style_context().add_class("dim-label")
         page.pack_start(intro, False, False, 0)
 
@@ -25,7 +27,7 @@ class SettingsPagesMixin:
                   "Desligado: só o título aparece, para mais privacidade")
 
         ignore = self._group(page, "Apps ignorados")
-        entry = Gtk.Entry(text=self.cfg["notif_ignore"], placeholder_text="Ex.: Spotify, Slack")
+        entry = Gtk.Entry(text=self.cfg["notif_ignore"], placeholder_text=_("Ex.: Spotify, Slack"))
         entry.set_width_chars(26)
         entry.set_max_length(500)
         pending = {"id": None}
@@ -56,9 +58,9 @@ class SettingsPagesMixin:
 
         scroll, page = self._page()
         intro = Gtk.Label(xalign=0, wrap=True)
-        intro.set_markup("Mostra os eventos da sua agenda principal do <b>Google</b> e avisa "
+        intro.set_markup(_("Mostra os eventos da sua agenda principal do <b>Google</b> e avisa "
                          "antes das reuniões. Funciona com contas pessoais e corporativas; "
-                         "o acesso é <b>somente leitura</b>.")
+                         "o acesso é <b>somente leitura</b>."))
         intro.get_style_context().add_class("dim-label")
         page.pack_start(intro, False, False, 0)
 
@@ -66,8 +68,8 @@ class SettingsPagesMixin:
         has_app = find_client_secret() is not None
         if not has_app:
             warn = Gtk.Label(xalign=0, wrap=True)
-            warn.set_markup("As credenciais do app do Google não estão configuradas nesta "
-                            "instalação — veja a seção <b>Agenda</b> do README.")
+            warn.set_markup(_("As credenciais do app do Google não estão configuradas nesta "
+                            "instalação — veja a seção <b>Agenda</b> do README."))
             warn.get_style_context().add_class("dim-label")
             box = Gtk.Box()
             for side in ("top", "bottom", "start", "end"):
@@ -77,7 +79,7 @@ class SettingsPagesMixin:
         self.ag_status = Gtk.Label(xalign=0)
         self.ag_button = Gtk.Button()
         self.ag_button.set_sensitive(has_app)
-        self.ag_button.connect("clicked", lambda *_: (
+        self.ag_button.connect("clicked", lambda *_a: (
             self.agenda.disconnect() if self.agenda.connected else self.agenda.login()))
         self._row(account, "Status", self.ag_button).get_children()[0].pack_start(
             self.ag_status, False, False, 0)
@@ -92,8 +94,8 @@ class SettingsPagesMixin:
         self._row(alert, "Quanto antes (min)", self._spin("agenda_lead_min", 0, 60, 5))
         self._row(alert, "Tocar som", self._switch("agenda_sound"))
         self._row(alert, "Som", self._choice("agenda_sound_name", SOUNDS))
-        test = Gtk.Button(label="Testar")
-        test.connect("clicked", lambda *_: play_sound(self.cfg["agenda_sound_name"],
+        test = Gtk.Button(label=_("Testar"))
+        test.connect("clicked", lambda *_a: play_sound(self.cfg["agenda_sound_name"],
                                                       self.cfg["agenda_sound_volume"]))
         vol = Gtk.Box(spacing=8)
         vol.pack_start(self._spin("agenda_sound_volume", 0, 100, 10), False, False, 0)
@@ -109,7 +111,7 @@ class SettingsPagesMixin:
         (ctx.add_class if ok else ctx.remove_class)("ok")
         (ctx.remove_class if ok else ctx.add_class)("dim-label")
         connected = self.agenda.connected
-        self.ag_button.set_label("Sair da conta" if connected else "Entrar com Google")
+        self.ag_button.set_label(_("Sair da conta") if connected else _("Entrar com Google"))
         bctx = self.ag_button.get_style_context()
         (bctx.remove_class if connected else bctx.add_class)("suggested")
 
@@ -128,8 +130,8 @@ class SettingsPagesMixin:
         sound = self._group(page, "Aviso sonoro")
         self._row(sound, "Tocar som no lembrete", self._switch("water_sound"))
         self._row(sound, "Som", self._choice("water_sound_name", SOUNDS))
-        test = Gtk.Button(label="Testar")
-        test.connect("clicked", lambda *_: play_sound(self.cfg["water_sound_name"],
+        test = Gtk.Button(label=_("Testar"))
+        test.connect("clicked", lambda *_a: play_sound(self.cfg["water_sound_name"],
                                                       self.cfg["water_sound_volume"]))
         vol = Gtk.Box(spacing=8)
         vol.pack_start(self._spin("water_sound_volume", 0, 100, 10), False, False, 0)
@@ -148,8 +150,8 @@ class SettingsPagesMixin:
 
         today = self._group(page, "Hoje")
         self.water_today = Gtk.Label(xalign=0)
-        reset = Gtk.Button(label="Zerar hoje")
-        reset.connect("clicked", lambda *_: (self.water.reset_day(), self._water_refresh()))
+        reset = Gtk.Button(label=_("Zerar hoje"))
+        reset.connect("clicked", lambda *_a: (self.water.reset_day(), self._water_refresh()))
         self._row(today, "Consumido", reset).get_children()[0].pack_start(
             self.water_today, False, False, 0)
         self._water_refresh()
@@ -158,7 +160,9 @@ class SettingsPagesMixin:
     def _water_refresh(self):
         if hasattr(self, "water_today"):
             self.water_today.set_text(
-                f"{self.water.consumed} de {self.cfg['water_goal_ml']} ml · {self.water.status()}")
+                _("{feito} de {meta} ml").format(feito=self.water.consumed,
+                                                 meta=self.cfg["water_goal_ml"])
+                + f" · {self.water.status()}")
             self.water_today.get_style_context().add_class("dim-label")
 
     def _page_spotify(self):
@@ -166,10 +170,10 @@ class SettingsPagesMixin:
 
         scroll, page = self._page()
         intro = Gtk.Label(xalign=0, wrap=True)
-        intro.set_markup(
+        intro.set_markup(_(
             "Mostra a <b>playlist</b> que está tocando e o <b>dispositivo</b> (celular, "
             "caixa de som, TV…). O Spotify não expõe isso localmente, então é preciso "
-            "conectar sua conta pela Web API com um app seu.")
+            "conectar sua conta pela Web API com um app seu."))
         intro.get_style_context().add_class("dim-label")
         page.pack_start(intro, False, False, 0)
 
@@ -181,7 +185,7 @@ class SettingsPagesMixin:
             "Salve, copie o <b>Client ID</b> do app e cole aqui embaixo.",
         ], 1):
             lb = Gtk.Label(xalign=0, wrap=True)
-            lb.set_markup(f"{n}. {text}")
+            lb.set_markup(f"{n}. {_(text)}")
             row = Gtk.Box()
             for side in ("top", "bottom", "start", "end"):
                 getattr(row, f"set_margin_{side}")(10 if side in ("top", "bottom") else 12)
@@ -189,8 +193,8 @@ class SettingsPagesMixin:
             steps.add(row)
         uri = Gtk.Label(label=REDIRECT_URI, selectable=True)
         uri.get_style_context().add_class("code")
-        copy = Gtk.Button(label="Copiar")
-        copy.connect("clicked", lambda *_: Gtk.Clipboard.get_default(
+        copy = Gtk.Button(label=_("Copiar"))
+        copy.connect("clicked", lambda *_a: Gtk.Clipboard.get_default(
             self.get_display()).set_text(REDIRECT_URI, -1))
         box = Gtk.Box(spacing=8)
         box.pack_start(uri, False, False, 0)
@@ -198,7 +202,7 @@ class SettingsPagesMixin:
         self._row(steps, "Redirect URI", box)
 
         account = self._group(page, "Conta")
-        entry = Gtk.Entry(text=self.cfg["spotify_client_id"], placeholder_text="32 caracteres")
+        entry = Gtk.Entry(text=self.cfg["spotify_client_id"], placeholder_text=_("32 caracteres"))
         entry.set_width_chars(34)
         entry.set_max_length(32)
 
@@ -241,6 +245,6 @@ class SettingsPagesMixin:
         else:
             ctx.remove_class("dim-label")
         connected = self.web.connected
-        self.sp_button.set_label("Desconectar" if connected else "Conectar")
+        self.sp_button.set_label(_("Desconectar") if connected else _("Conectar"))
         bctx = self.sp_button.get_style_context()
         (bctx.remove_class if connected else bctx.add_class)("suggested")

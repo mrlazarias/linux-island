@@ -3,13 +3,8 @@ from datetime import date, timedelta
 
 from gi.repository import Gtk, Pango
 
+from i18n import _, long_date, short_date, weekday
 from widgets import Art, Equalizer, Progress
-
-DIAS = ["segunda-feira", "terça-feira", "quarta-feira", "quinta-feira",
-        "sexta-feira", "sábado", "domingo"]
-DIAS_CURTOS = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
-MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho",
-         "agosto", "setembro", "outubro", "novembro", "dezembro"]
 
 
 def fmt_time(us):
@@ -42,7 +37,7 @@ def control(icon_name, size, cb, main=False):
     btn.get_style_context().add_class("control")
     if main:
         btn.get_style_context().add_class("main")
-    btn.connect("clicked", lambda *_: cb())
+    btn.connect("clicked", lambda *_a: cb())
     return btn, img
 
 
@@ -160,7 +155,7 @@ class Compact(Gtk.Box):
 
     def set_clock(self, now, h24=True):
         self.clock.set_text(clock_text(now, h24))
-        self.date.set_text(f"{DIAS_CURTOS[now.weekday()]} {now.day} {MESES[now.month - 1][:3]}")
+        self.date.set_text(short_date(now))
 
     def set_weather(self, fc):
         self.w_icon.set_from_icon_name(fc.icon, Gtk.IconSize.BUTTON)
@@ -237,22 +232,22 @@ class Expanded(Gtk.Box):
 
     def set_clock(self, now, h24=True):
         self.clock.set_text(clock_text(now, h24))
-        self.date.set_text(f"{DIAS[now.weekday()]}, {now.day} de {MESES[now.month - 1]}")
+        self.date.set_text(long_date(now))
 
     def set_weather(self, fc):
         self.w_icon.set_from_icon_name(fc.icon, Gtk.IconSize.BUTTON)
         self.w_temp.set_text(f"{fc.temp}°")
-        self.w_desc.set_text(f"{fc.desc} · ↑{fc.today_max}° ↓{fc.today_min}°")
-        self.w_place.set_text(f"{fc.place} · sensação {fc.feels}°" if fc.place
-                              else f"sensação {fc.feels}°")
+        self.w_desc.set_text(f"{_(fc.desc)} · ↑{fc.today_max}° ↓{fc.today_min}°")
+        feels = _("sensação {t}°").format(t=fc.feels)
+        self.w_place.set_text(f"{fc.place} · {feels}" if fc.place else feels)
         self.w_rev.set_reveal_child(True)
         for c in self.days_box.get_children():
             self.days_box.remove(c)
         today = date.today()
         for iso, ic, mx, mn, rain in fc.days:
             d = date.fromisoformat(iso)
-            name = "Hoje" if d == today else (
-                "Amanhã" if d == today + timedelta(days=1) else DIAS_CURTOS[d.weekday()])
+            name = _("Hoje") if d == today else (
+                _("Amanhã") if d == today + timedelta(days=1) else weekday(d.weekday(), True))
             col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
             col.get_style_context().add_class("day")
             col.pack_start(label("dim small", 0.5), False, False, 0)
@@ -302,10 +297,10 @@ class Expanded(Gtk.Box):
 
         ctrls = Gtk.Box(spacing=18)
         ctrls.set_halign(Gtk.Align.CENTER)
-        prev, _ = control("media-skip-backward-symbolic", 20, lambda: self.player.previous())
+        prev, _img = control("media-skip-backward-symbolic", 20, lambda: self.player.previous())
         play, self.play_img = control("media-playback-start-symbolic", 26,
                                       lambda: self.player.play_pause(), main=True)
-        nxt, _ = control("media-skip-forward-symbolic", 20, lambda: self.player.next())
+        nxt, _img = control("media-skip-forward-symbolic", 20, lambda: self.player.next())
         for b in (prev, play, nxt):
             ctrls.pack_start(b, False, False, 0)
 

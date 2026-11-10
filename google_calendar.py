@@ -21,6 +21,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from gi.repository import Gio, GLib
 
+from i18n import _
 from secret_store import SecretStore
 
 SCOPE = "https://www.googleapis.com/auth/calendar.readonly"
@@ -40,6 +41,10 @@ SECRET_PATHS = [
 
 class AuthError(Exception):
     """Precisa (re)conectar: sem credenciais, token revogado ou expirado."""
+
+
+class MissingAppError(AuthError):
+    """A instalação não tem as credenciais do app do Google."""
 
 
 # --- credenciais do app ------------------------------------------------------
@@ -118,12 +123,12 @@ class GoogleCalendar:
     def _access_token(self, force=False):
         with self._lock:
             if not self.connected:
-                raise AuthError("não conectado")
+                raise AuthError(_("não conectado"))
             if force or time.time() >= self.token.get("expires_at", 0):
                 cs = find_client_secret()
                 if not cs:
-                    raise AuthError("credenciais do app não encontradas")
-                _, cid, csecret = cs
+                    raise MissingAppError(_("credenciais do app não encontradas"))
+                _path, cid, csecret = cs
                 try:
                     self._token_request({"grant_type": "refresh_token", "client_id": cid,
                                          "client_secret": csecret,
@@ -140,8 +145,8 @@ class GoogleCalendar:
         """Abre o navegador e espera o retorno. Devolve None ou levanta AuthError."""
         cs = find_client_secret()
         if not cs:
-            raise AuthError("credenciais do app não encontradas")
-        _, cid, csecret = cs
+            raise MissingAppError(_("credenciais do app não encontradas"))
+        _path, cid, csecret = cs
         verifier = secrets.token_urlsafe(64)
         challenge = base64.urlsafe_b64encode(
             hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
@@ -164,9 +169,9 @@ class GoogleCalendar:
             server.server_close()
         res = server.result
         if res is None:
-            raise AuthError("tempo de login esgotado")
+            raise AuthError(_("tempo de login esgotado"))
         if "error" in res:
-            raise AuthError(f"login cancelado: {res['error']}")
+            raise AuthError(_("login cancelado: {erro}").format(erro=res["error"]))
         self._token_request({"grant_type": "authorization_code", "code": res["code"],
                              "redirect_uri": redirect, "client_id": cid,
                              "client_secret": csecret, "code_verifier": verifier})
@@ -221,7 +226,7 @@ def make_handler(expected_state):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
-            msg = "Agenda conectada! Pode fechar esta aba." if ok else "Login cancelado."
+            msg = _("Agenda conectada! Pode fechar esta aba.") if ok else _("Login cancelado.")
             self.wfile.write(
                 ("<html><body style='background:#000;color:#fff;font-family:sans-serif;"
                  "display:grid;place-items:center;height:100vh;margin:0'>"
