@@ -1,88 +1,136 @@
+<div align="center">
+
 # linux-island
 
-Uma *dynamic island* para o Linux que fica no centro do painel, no lugar do relógio. Ela mostra **hora, data, clima e o que está tocando**: Spotify, YouTube no navegador, VLC, mpv e outros. Ao passar o mouse, ela se expande com a previsão dos próximos dias e os controles de mídia.
+**A Dynamic Island que faltava no seu Linux.**
 
-![Ilha compacta no painel](docs/compact.png)
+Hora, clima, música, agenda, notificações e lembretes, tudo numa pílula elegante no topo da tela, que se abre quando você precisa e some quando não precisa.
 
-![Ilha expandida](docs/expanded.png)
+![A ilha no painel](docs/compact.png)
 
-Feita para o **COSMIC** (Pop!_OS 24.04). Veja a [compatibilidade](#compatibilidade) com outros ambientes.
+![A ilha aberta](docs/expanded.png)
 
-## Recursos
+</div>
 
-- **Relógio e data** em 24h ou 12h, no idioma escolhido.
-- **Clima atual**: temperatura, condição, máxima, mínima e sensação térmica, via [Open-Meteo](https://open-meteo.com/), sem chave de API.
-- **Previsão de 5 dias** com a chance de chuva.
-- **Qualquer player de música ou vídeo** compatível com MPRIS (Spotify, Firefox, Chrome, VLC, mpv, Rhythmbox…). A ilha mostra o que está tocando agora e, se nada estiver tocando, o último usado. Dá para ignorar players, por exemplo navegadores.
-- **Spotify** e os outros players, via MPRIS/D-Bus:
-  - capa, título, artista e uma barra de progresso clicável e arrastável;
-  - botões de anterior, play/pause e próxima;
-  - **volume**: barra arrastável com botão de mudo, ou rolagem do mouse sobre a ilha, de 5% em 5%;
-  - o equalizador e a barra de progresso usam a cor predominante da capa;
-  - na troca de faixa, a pílula se estica na horizontal mostrando título e artista por alguns segundos e volta ao relógio;
-  - opcional: **playlist** (ou álbum, artista, Músicas Curtidas) e **dispositivo** onde está tocando (celular, caixa de som, TV…). Quando toca em outro aparelho, aparece um ícone dele na pílula.
-- **Notificações na ilha**: quando um app notifica, a pílula se estica por alguns segundos mostrando o ícone do app, o título e o texto. Se chegarem várias, elas entram em fila, e clicar abre o app. Tem "não perturbe", duração ajustável, opção de esconder o texto e lista de apps ignorados.
-- **Lembrete de beber água**: uma página só para isso na ilha expandida.
-  - Anel com o progresso da meta do dia, uma gota por copo, botão **+copo** e desfazer.
-  - Na hora de beber, a pílula mostra **"Hora de beber água"** com a borda azul pulsando, e passar o mouse ou clicar abre direto na página da água, com o botão **Adiar**.
-  - **Aviso sonoro** ao lembrar: dá para escolher o som e o volume, e testar nas configurações.
-  - Notificação do sistema opcional, com **Bebi** e **Adiar**.
-  - O contador zera sozinho na virada do dia.
-- **Agenda do Google**, com contas pessoais e corporativas, somente leitura: uma página com os eventos de hoje e dos próximos dias, e clicar num evento abre o Meet ou o evento no Calendar.
-  - Antes de cada reunião, a pílula mostra **"Reunião · em 8 min"** com a borda violeta pulsando e um aviso sonoro.
-  - Ao abrir a ilha, aparece o cartão da reunião com **Entrar** e **Dispensar**.
-- **Em português, inglês ou espanhol**: a ilha segue o idioma do sistema, ou o que você escolher, incluindo datas, clima e todas as telas.
-- **Animações**: a pílula muda de tamanho e de arredondamento ao expandir, e a capa e o equalizador deslizam pra dentro quando a música começa.
-- **Leve**: Python + GTK3, sem polling de metadados. O Spotify avisa por D-Bus quando algo muda.
+---
 
-### Interação
+## ✨ Por que linux-island?
 
-| Ação | Resultado |
+O topo da tela é o lugar mais valioso do seu desktop, e quase sempre está ocupado só por um relógio. O **linux-island** troca esse relógio por uma ilha viva:
+
+- **Discreta quando você está focado.** Uma pílula com hora, data, clima e o que está tocando.
+- **Completa quando você precisa.** Passe o mouse e ela se abre com previsão, controles de música, sua agenda e seus lembretes.
+- **Atenta a você.** Avisa de reuniões, notificações e da hora de beber água, sem sair de onde você está.
+
+Leve, bonita e feita para o Linux, sem Electron e sem navegador embutido.
+
+---
+
+## 🎵 Sua música, sempre à vista
+
+Spotify, YouTube no navegador, VLC, mpv, Rhythmbox… **o que estiver tocando aparece na ilha**, com capa, título e um equalizador na cor do álbum.
+
+- **Troca de música?** A pílula se estica por alguns segundos mostrando a faixa nova e depois volta ao relógio.
+- **Abriu outro player?** Se ele começou a tocar, a ilha passa para ele sozinha.
+- **Controles completos** na ilha aberta: voltar, play/pause, avançar, barra de progresso e volume.
+- **Volume na rodinha do mouse**: role sobre a ilha para subir ou baixar.
+- **No Spotify**, a ilha ainda mostra **qual playlist** está tocando e **em qual aparelho** (celular, caixa de som, TV…).
+
+## ⛅ Hora, data e clima
+
+- Relógio em 24h ou 12h, com a data por extenso.
+- **Clima agora** e **previsão de 5 dias**, com chance de chuva, para a sua cidade.
+- A cidade é detectada sozinha, ou você escolhe.
+
+## 📅 Sua agenda no topo da tela
+
+![Agenda](docs/agenda.png)
+
+Conecte sua conta do **Google**, pessoal ou corporativa, e veja o seu dia sem abrir nada:
+
+- **Antes de cada reunião**, a pílula avisa com contagem regressiva e um som discreto:
+
+  ![Aviso de reunião](docs/meeting.png)
+
+- **Um clique em "Entrar"** e você está na chamada do Google Meet.
+- Seus compromissos de **hoje**, **amanhã** e dos próximos dias, organizados.
+- Reuniões que você recusou não aparecem.
+
+## 💧 Lembrete de beber água
+
+![Água](docs/water.png)
+
+Defina sua meta e a ilha cuida do resto: lembra na hora certa, com um aviso sonoro e um brilho azul na pílula, e você registra cada copo com um clique. O dia zera sozinho à meia-noite.
+
+## 🔔 Notificações, do jeito da ilha
+
+![Notificação](docs/notification.png)
+
+Quando um app manda uma notificação, a pílula se estica mostrando **quem notificou e o que disse**. Várias de uma vez? Elas entram em fila. Clique e o app abre.
+
+Tem **não perturbe**, opção de **esconder o texto** em apresentações e uma lista de **apps ignorados**.
+
+## 🎨 Do seu jeito
+
+- **Temas prontos**: Clássico, Vidro, Claro, Spotify e Grafite. Ou monte o seu, com cores, transparência e cantos.
+- **Em português, inglês ou espanhol**, seguindo o idioma do sistema ou o que você escolher.
+- Tudo se ajusta numa tela de configurações com o mesmo visual da ilha, e as mudanças aparecem na hora.
+
+---
+
+## 🖱️ Gestos
+
+| Você faz | A ilha faz |
 |---|---|
-| Passar o mouse | expande |
-| Clique esquerdo numa área livre | abre ou fecha |
-| Clique do meio | play / pause |
-| Rolar sobre a ilha | volume da música (±5%) |
-| Clicar numa notificação na pílula | abre o app que notificou |
-| Clique direito | menu: Configurações, abrir o player que está tocando, Sair |
-| Clicar ou arrastar na barra | pula para o ponto da música |
-| Arrastar para o lado (com a ilha aberta) | troca de página: música/clima ↔ água ↔ agenda |
-| Dois dedos para o lado no touchpad, ou clicar nos pontinhos | troca de página |
+| Passa o mouse | se abre |
+| Clica numa área livre | abre ou fecha |
+| Arrasta para o lado (com ela aberta) | troca de página: música e clima ↔ água ↔ agenda |
+| Rola a rodinha | muda o volume da música |
+| Clica com o botão do meio | play / pause |
+| Clica numa notificação | abre o app que notificou |
+| Clica com o botão direito | abre o menu: Configurações, abrir o player, Sair |
 
-## Compatibilidade
+## 🔒 Privacidade
 
-Precisa de **Wayland** com suporte a `wlr-layer-shell`, que é o recurso que prende a ilha no topo da tela, por cima das janelas.
+- **Seus dados ficam com você.** O contador de água, as notificações e as configurações nunca saem do seu computador.
+- **Agenda e Spotify são somente leitura.** As chaves de acesso ficam no **chaveiro protegido do sistema**, e "Sair da conta" remove o acesso na hora.
+- Para o **clima**, a ilha consulta o [Open-Meteo](https://open-meteo.com/) e, se você não escolher uma cidade, descobre a sua pelo IP via [ipwho.is](https://ipwho.is/).
 
-| Ambiente | Situação |
+## 🐧 Onde funciona
+
+| Ambiente | |
 |---|---|
-| **COSMIC** | ✅ testado; dá para substituir o relógio do painel |
-| **Hyprland, Sway, river, niri, Wayfire** | 🟡 têm layer-shell e devem funcionar (não testado) |
-| **KDE Plasma (Wayland)** | 🟡 o KWin tem layer-shell e deve funcionar (não testado) |
-| **GNOME** | ❌ o Mutter não suporta layer-shell; precisaria de uma extensão do GNOME Shell |
-| **X11** | ❌ não suportado |
+| **COSMIC** (Pop!_OS 24.04) | ✅ testado; ocupa o lugar do relógio do painel |
+| **Hyprland, Sway, river, niri, Wayfire** | 🟡 deve funcionar |
+| **KDE Plasma** (Wayland) | 🟡 deve funcionar |
+| **GNOME** | ❌ ainda não |
+| **X11** | ❌ não |
 
-Fora do COSMIC, a ilha aparece no topo, centralizada. Esconda o relógio da sua barra (Waybar, painel do Plasma…) ou ajuste a posição com `--margin` ou em *Configurações → Comportamento*. Testou em outro ambiente? Abra uma issue contando como foi.
+Testou em outro ambiente? [Conte para a gente](https://github.com/mrlazarias/linux-island/issues).
 
-## Instalação
+## 📄 Licença
 
-Dependências (Ubuntu, Pop!_OS, Debian):
+[MIT](LICENSE): use, modifique e compartilhe à vontade.
+
+---
+
+## 🚀 Como usar
+
+### 1. Instale
+
+No Ubuntu, Pop!_OS ou Debian:
 
 ```bash
 sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-gtklayershell-0.1
-```
-
-Depois:
-
-```bash
 git clone https://github.com/mrlazarias/linux-island.git
 cd linux-island
 ./run.sh
 ```
 
 <details>
-<summary>Sem sudo? Use o gtk-layer-shell localmente</summary>
+<summary>Sem permissão de administrador (sudo)?</summary>
 
-O `run.sh` usa automaticamente uma cópia do gtk-layer-shell em `vendor/`, se ela existir:
+O `run.sh` usa sozinho uma cópia local do gtk-layer-shell em `vendor/`, se ela existir:
 
 ```bash
 mkdir -p vendor/debs && cd vendor/debs
@@ -92,63 +140,23 @@ for f in *.deb; do dpkg-deb -x "$f" ../root; done
 
 </details>
 
-## Configurações
+### 2. Abra as configurações
 
-Clique com o botão direito na ilha e escolha **Configurações…**, ou rode `./run.sh --settings`. Se a ilha já estiver aberta, o comando só abre a janela, sem criar uma segunda ilha. Tudo é aplicado na hora e salvo em `~/.config/linux-island/config.json`.
+Clique com o **botão direito** na ilha e escolha **Configurações…**, ou rode `./run.sh --settings`.
 
-| Aba | O que dá para mudar |
+| Aba | O que você ajusta |
 |---|---|
-| **Aparência** | temas prontos (Clássico, Vidro, Claro, Spotify, Grafite), cor de fundo com transparência, cor do texto, cor de destaque fixa ou automática pela capa, arredondamento, borda |
-| **Relógio e clima** | 12h/24h, data na pílula, cidade (vazio = detectar pelo IP), °C ou °F, clima na pílula |
-| **Comportamento** | expandir no hover, atraso do hover, mostrar a música nova na pílula, volume pela rolagem, players ignorados, distância do topo, idioma, iniciar com a sessão |
+| **Aparência** | temas, cores, transparência, cantos e borda |
+| **Relógio e clima** | 12h/24h, data e clima na pílula, cidade, °C ou °F |
+| **Comportamento** | abrir ao passar o mouse, mostrar a música nova, volume pela rodinha, players ignorados, posição, idioma, iniciar com a sessão |
+| **Notificações** | mostrar na pílula, não perturbe, duração, esconder o texto, apps ignorados |
+| **Água** | meta, tamanho do copo, intervalo, horário, adiar, som e notificação |
+| **Agenda** | entrar com Google, dias à frente, quanto antes avisar, som |
+| **Spotify** | conectar a conta para ver playlist e aparelho |
 
-| **Agenda** | entrar/sair da conta Google, mostrar agenda, dias à frente, avisar na pílula, quanto antes, som, volume |
-| **Notificações** | mostrar na pílula, não perturbe, duração, mostrar o texto, apps ignorados |
-| **Água** | ligar/desligar, intervalo, adiar por, meta diária, tamanho do copo, horário de início e fim, aviso sonoro (som, volume, testar), notificação do sistema, zerar hoje |
-| **Spotify** | Client ID do seu app, conectar e desconectar a conta |
+### 3. Coloque a ilha no lugar do relógio (COSMIC)
 
-As opções de linha de comando valem só para aquela execução e não alteram o arquivo:
-
-```bash
-./run.sh --city "Belo Horizonte"   # cidade do clima
-./run.sh --margin 2                # distância do topo da tela, em px
-```
-
-### Playlist e dispositivo (Spotify Web API)
-
-O MPRIS do Spotify não diz qual playlist está tocando nem em qual aparelho. Por isso essa parte usa a Web API, com um app do Spotify **seu**: o projeto não distribui um Client ID.
-
-1. Em [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard), crie um app. A conta dona precisa ser Premium.
-2. Em **Redirect URIs**, adicione `http://127.0.0.1:8974/callback` e marque **Web API**.
-3. Copie o **Client ID**, cole em *Configurações → Spotify* e clique em **Conectar**. O navegador abre para você autorizar.
-
-No modo de desenvolvimento, o Spotify permite até 5 usuários por app, adicionados em *User Management*. Playlists do próprio Spotify (Daily Mix, Descobertas da Semana) aparecem só como "Playlist", porque a API não devolve o nome delas para apps novos.
-
-### Agenda (Google)
-
-Em *clique direito → Configurações → Agenda*, clique em **Entrar com Google** e autorize no navegador. O acesso é somente leitura (`calendar.readonly`) e lê só a agenda principal. Funciona com Gmail e com contas Google Workspace, desde que o administrador da empresa não bloqueie apps de terceiros.
-
-<details>
-<summary>Para quem mantém ou empacota o projeto: as credenciais do app do Google</summary>
-
-O login usa um app OAuth do tipo **App para computador**. A ilha procura as credenciais, nesta ordem:
-
-1. `~/.config/linux-island/google_client_secret.json`: um app próprio, se você quiser usar o seu.
-2. `google_client.json` na pasta do projeto: o app oficial do linux-island, distribuído junto com o código.
-
-Para criar o app:
-
-1. No [Google Cloud Console](https://console.cloud.google.com/), crie um projeto e ative a **Google Calendar API**.
-2. Em **Tela de consentimento OAuth**, escolha o tipo **Externo**, adicione o escopo `calendar.readonly` e **publique o app** ("Em produção"). Em modo de teste, só usuários cadastrados conseguem entrar, e o login expira a cada 7 dias.
-3. Em **Credenciais → Criar credenciais → ID do cliente OAuth → App para computador**, baixe o JSON.
-
-Enquanto o app não passar pela verificação do Google, quem entrar vê o aviso "O Google não verificou este app" e precisa clicar em *Avançado → Acessar*. O limite é de 100 usuários. Em apps de computador, o *client secret* não é sigiloso: o Google trata o cliente como público e a segurança vem do PKCE. Por isso ele pode ir junto com o código.
-
-</details>
-
-### Substituir o relógio do COSMIC
-
-A ilha fica por cima do painel. Para tirar o relógio original de baixo dela, remova o applet de hora do centro do painel. Isso pode ser feito nas configurações de applets do painel ou direto no arquivo:
+A ilha fica por cima do painel. Para tirar o relógio original de baixo dela, remova o applet de hora do centro do painel nas configurações de applets do COSMIC, ou pelo terminal:
 
 ```bash
 P=~/.config/cosmic/com.system76.CosmicPanel.Panel/v1
@@ -156,78 +164,37 @@ cp $P/plugins_center $P/plugins_center.backup   # para voltar depois
 printf 'Some([])' > $P/plugins_center
 ```
 
-### Iniciar com a sessão
+Em outros ambientes, esconda o relógio da sua barra (Waybar, painel do Plasma…) ou ajuste a posição em *Comportamento → Distância do topo*.
 
-Ligue em *Configurações → Comportamento → Iniciar com a sessão*, ou crie o arquivo à mão:
+### 4. Abra junto com o computador
 
-```bash
-cat > ~/.config/autostart/linux-island.desktop <<EOF
-[Desktop Entry]
-Type=Application
-Name=linux-island
-Exec=$PWD/run.sh
-NoDisplay=true
-EOF
-```
+Ligue *Configurações → Comportamento → Iniciar com a sessão*.
 
-## Como funciona
+### 5. Conecte sua agenda
 
-| Arquivo | Papel |
-|---|---|
-| `island.py` | aplicação de instância única e janela layer-shell (camada overlay, ancorada no topo): hover, cliques, menu, animações de tamanho |
-| `config.py` | configurações com padrões e validação; gera o CSS das cores |
-| `settings.py` | janela de configurações |
-| `views.py` | conteúdo dos modos compacto e expandido |
-| `pointer.py` | mouse: hover, clique, arrastar para trocar de página, rolagem e menu |
-| `agenda.py` | agenda: eventos normalizados, aviso de reunião e contagem regressiva (lógica pura) e a busca periódica |
-| `google_calendar.py` | Google Calendar: login OAuth de computador (PKCE) e leitura dos eventos |
-| `secret_store.py` | guarda segredos (o token do Google) no chaveiro do sistema |
-| `agenda_view.py` | página "Agenda" e o aviso de reunião na pílula |
-| `pages.py` | páginas da ilha expandida e prioridade do miolo da pílula |
-| `notifications.py` | observa as notificações do sistema e as mostra na pílula |
-| `i18n.py`, `locale_en.py`, `locale_es.py` | idioma da interface e as traduções |
-| `water.py` | lembrete de água: estado do dia, agenda e notificação |
-| `water_view.py` | página "Hidratação" (anel, gotas, botões) |
-| `settings_pages.py` | abas Água e Spotify das configurações |
-| `widgets.py` | capa arredondada, equalizador e barra de progresso desenhados com cairo |
-| `spotify_web.py` | Spotify Web API: login OAuth PKCE, playlist e dispositivo em reprodução |
-| `players.py` | players MPRIS: descobre todos, escolhe o ativo, faixa, capa, posição, volume e controles |
-| `weather.py` | localização (cidade via geocoding do Open-Meteo ou IP via ipwho.is) e previsão |
-| `style.css` | aparência |
+Em *Configurações → Agenda*, clique em **Entrar com Google** e autorize no navegador.
 
-Algumas particularidades descobertas no caminho:
+<details>
+<summary>Para quem distribui o linux-island: as credenciais do app do Google</summary>
 
-- **Posição da música:** o Spotify não emite mudanças da propriedade `Position`. A posição é interpolada localmente e ressincronizada a cada ~3 s e no sinal `Seeked`.
-- **Tamanho da janela:** janelas GTK3 não encolhem sozinhas. Durante as animações, a janela acompanha o tamanho do conteúdo a cada frame.
-- **Hover:** no Wayland o GTK3 gera eventos `enter`/`leave` "fantasmas" ao cruzar as sub-janelas internas. Por isso o hover consulta onde o ponteiro realmente está.
-- **Lembrete depois da suspensão:** a agenda é recalculada a cada 30 s pelo relógio de parede. Um timeout longo do GLib usa o relógio monotônico, que para durante a suspensão, e o lembrete chegaria horas atrasado.
-- **Notificações de outros apps:** o COSMIC continua sendo o servidor de notificações. A ilha só observa as chamadas `Notify` no barramento, numa conexão em modo monitor. As chamadas observadas precisam ser consumidas no filtro: se seguissem, o GDBus responderia "método desconhecido", e o barramento desconecta monitores que enviam qualquer coisa.
-- **Notificações:** no COSMIC o `GNotification` falha sem avisar, porque escolhe um backend que não existe lá. A notificação fala direto com `org.freedesktop.Notifications`.
-- **Localização:** o GeoClue não responde sem um agente, como no COSMIC. Por isso a cidade vem do IP, ou de `--city`.
+O login usa um app OAuth do tipo **App para computador**. A ilha procura as credenciais em `~/.config/linux-island/google_client_secret.json` (um app próprio) e depois em `google_client.json`, na pasta do projeto (o app oficial).
 
-Para depurar, rode com `ISLAND_DEBUG=1 ./run.sh` e acompanhe os eventos no terminal.
+1. No [Google Cloud Console](https://console.cloud.google.com/), crie um projeto e ative a **Google Calendar API**.
+2. Em **Tela de consentimento OAuth**, escolha **Externo**, adicione o escopo `calendar.readonly` e **publique o app**. Em modo de teste, só usuários cadastrados entram, e o login expira a cada 7 dias.
+3. Em **Credenciais → ID do cliente OAuth → App para computador**, baixe o JSON.
 
-## Privacidade
+Até a verificação do Google, quem entrar vê o aviso "O Google não verificou este app", e o limite é de 100 usuários.
 
-- Para descobrir a cidade, o seu IP é enviado ao [ipwho.is](https://ipwho.is/), a não ser que você use `--city`. O resultado fica em cache por 6 horas em `~/.cache/linux-island/`.
-- As coordenadas são enviadas ao [Open-Meteo](https://open-meteo.com/) para buscar a previsão.
-- Se você conectar a Web API, o login é OAuth PKCE (sem segredo) e pede só permissão de leitura: `user-read-playback-state`, `playlist-read-private` e `playlist-read-collaborative`. O token fica em `~/.config/linux-island/spotify-token.json`, legível só pelo seu usuário. Para revogar, use **Desconectar** ou acesse [spotify.com/account/apps](https://www.spotify.com/account/apps/).
-- Se você entrar com o Google, o login é OAuth com PKCE e só permissão de leitura (`calendar.readonly`). O token fica no chaveiro do sistema (libsecret), ou num arquivo legível só pelo seu usuário quando não houver chaveiro. **Sair da conta** apaga o token e revoga o acesso no Google.
-- As notificações de outros apps só são mostradas na pílula: não ficam guardadas em lugar nenhum e não saem do seu computador.
-- O contador de água fica só no seu computador, em `~/.local/state/linux-island/water.json`.
-- As capas são baixadas do CDN do Spotify e guardadas em `~/.cache/linux-island/art/`.
+</details>
 
-## Roadmap
+### 6. Veja playlist e aparelho do Spotify (opcional)
 
-- [x] Menu de configurações (cores, temas, cidade, unidades, comportamento)
-- [x] Playlist e dispositivo em reprodução (Spotify Web API)
-- [x] Lembrete de beber água (configurável)
-- [x] Agenda do Google com aviso de reunião
-- [x] Outros players MPRIS (Firefox, Chrome, VLC, mpv…)
-- [x] Notificações na ilha
-- [x] Volume (barra, mudo e rolagem do mouse)
-- [x] Idioma configurável (português, inglês e espanhol)
+1. Em [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard), crie um app. A conta precisa ser Premium.
+2. Em **Redirect URIs**, adicione `http://127.0.0.1:8974/callback` e marque **Web API**.
+3. Copie o **Client ID**, cole em *Configurações → Spotify* e clique em **Conectar**.
 
-## Licença
+### Dicas
 
-[MIT](LICENSE)
+- `./run.sh --city "Belo Horizonte"` usa outra cidade só nesta vez.
+- `./run.sh --margin 2` muda a distância do topo só nesta vez.
+- Rodar `./run.sh` de novo com a ilha aberta não cria uma segunda ilha.
