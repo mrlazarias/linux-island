@@ -242,6 +242,31 @@ class Settings(SettingsPagesMixin, Gtk.Window):
         self._sync[key] = lambda: sp.set_value(self.cfg[key])
         return sp
 
+    def _text_entry(self, key, max_len, placeholder):
+        """Campo de texto ligado à config, salvando depois de uma pausa na digitação."""
+        entry = Gtk.Entry(text=self.cfg[key], placeholder_text=_(placeholder))
+        entry.set_width_chars(22)
+        entry.set_max_length(max_len)
+        pending = {"id": None}
+
+        def commit(*_a):
+            if pending["id"]:
+                GLib.source_remove(pending["id"])
+                pending["id"] = None
+            self.cfg.set(key, entry.get_text().strip())
+            return False
+
+        def changed(*_a):
+            if pending["id"]:
+                GLib.source_remove(pending["id"])
+            pending["id"] = GLib.timeout_add(800, commit)
+
+        entry.connect("changed", changed)
+        entry.connect("activate", commit)
+        self._sync[key] = lambda: (entry.get_text().strip() != self.cfg[key]
+                                   and entry.set_text(self.cfg[key]))
+        return entry
+
     def _choice(self, key, options):
         combo = Gtk.ComboBoxText()
         for value, label in options:
@@ -364,7 +389,12 @@ class Settings(SettingsPagesMixin, Gtk.Window):
         self._row(hover, "Mostrar a música nova na pílula", self._switch("peek_on_track"),
                   "Na troca de faixa a pílula se estica com título e artista por 4 s")
         self._row(hover, "Volume pela rolagem do mouse", self._switch("scroll_volume"),
-                  "Role sobre a ilha para aumentar ou baixar o volume do Spotify")
+                  "Role sobre a ilha para aumentar ou baixar o volume da música")
+
+        players = self._group(page, "Players")
+        self._row(players, "Ignorar players", self._text_entry("player_ignore", 300,
+                                                                 "Ex.: firefox, chromium"),
+                  "Nomes separados por vírgula — por exemplo, para não mostrar vídeos do navegador")
 
         pos = self._group(page, "Posição")
         self._row(pos, "Distância do topo (px)", self._spin("margin_top", 0, 200))

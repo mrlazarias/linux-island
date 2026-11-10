@@ -74,6 +74,8 @@ SCHEMA = {
     "notif_ignore": ("Spotify", lambda v: isinstance(v, str) and len(v) <= 500),
     # idioma da interface ("auto" segue o sistema)
     "language": ("auto", _choice("auto", "pt", "en", "es")),
+    # players de mídia a ignorar (nomes separados por vírgula)
+    "player_ignore": ("", lambda v: isinstance(v, str) and len(v) <= 300),
     # comportamento
     "hover_expand": (True, _is_bool),
     "peek_on_track": (True, _is_bool),

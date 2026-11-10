@@ -181,7 +181,8 @@ class InputMixin:
         menu = Gtk.Menu()
         items = [(_("Configurações…"), self.app.open_settings)]
         if self.player.proxy:
-            items.append((_("Abrir o Spotify"), self.player.raise_window))
+            items.append((_("Abrir o {app}").format(app=self.player.name),
+                          self.player.raise_window))
         items += [(None, None), (_("Sair"), self.app.quit)]
         for text, cb in items:
             item = Gtk.SeparatorMenuItem() if text is None else Gtk.MenuItem(label=text)

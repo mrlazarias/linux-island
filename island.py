@@ -28,7 +28,8 @@ import i18n  # noqa: E402
 from i18n import _  # noqa: E402
 from config import Config, accent_tuple, build_css, rgba  # noqa: E402
 from settings import Settings  # noqa: E402
-from spotify import Spotify  # noqa: E402
+from players import Players  # noqa: E402
+from notifications import parse_ignore as parse_names  # noqa: E402
 from spotify_web import SpotifyWeb  # noqa: E402
 from notifications import NotificationWatcher  # noqa: E402
 from views import Compact, Expanded, NotifPill, label  # noqa: E402
@@ -60,8 +61,9 @@ class Island(PagesMixin, InputMixin, Gtk.Window):
         self._sync_counter = 0
         self._minute = None
 
-        self.player = Spotify(self._on_presence, self._on_track,
-                              self._on_status, self._on_art, self._on_volume)
+        self.player = Players(self._on_presence, self._on_track, self._on_status,
+                              self._on_art, self._on_volume, on_switch=self._on_player_switch,
+                              ignored=self._player_ignored)
         self._last_scroll = None
         self._scroll_acc = 0.0
         self._last_discrete = None
@@ -128,6 +130,8 @@ class Island(PagesMixin, InputMixin, Gtk.Window):
             self._tick_clock()
         if key is None or key in ("show_date", "show_weather"):
             self.compact.set_visibility(cfg["show_date"], cfg["show_weather"])
+        if key == "player_ignore":
+            self.player.refresh_choice()
         if key in ("city", "units"):
             self.weather.configure(cfg["city"], cfg["units"])
         if key == "spotify_client_id":
@@ -289,7 +293,25 @@ class Island(PagesMixin, InputMixin, Gtk.Window):
         self.web.kick()
 
     # --- Spotify Web API (playlist e dispositivo) -----------------------
+    def _player_ignored(self, p):
+        """Players que o usuário pediu para ignorar (ex.: navegadores)."""
+        names = parse_names(self.cfg["player_ignore"])
+        ident = (p.identity or "").lower()
+        return any(n == p.short or n in ident for n in names)
+
+    def _on_player_switch(self, p):
+        log("player ativo", p and p.identity)
+        if p is None or not p.is_spotify:
+            # playlist e dispositivo só fazem sentido para o Spotify
+            self.full.set_playback(None)
+            self.compact.set_remote_device(None)
+        else:
+            self.web.kick()
+        self._follow_size()
+
     def _on_playback(self, pb):
+        if not self.player.is_spotify:
+            pb = None
         self.full.set_playback(pb)
         remote = pb is not None and pb.is_playing and not self._is_this_computer(pb)
         self.compact.set_remote_device(pb.device_icon if remote else None)
