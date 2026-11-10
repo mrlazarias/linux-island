@@ -3,13 +3,15 @@
 Mixin da janela Island; usa self.full, self.water, self.water_page, self.compact,
 self.shell, self.cfg, self.app, self._timers e self._follow_size dela.
 """
+from datetime import datetime
+
 from gi.repository import Gtk
 
 from pointer import log
 from water import play_sound
 
 TRANSITION_MS = 320
-PAGES = ("home", "water")  # páginas da ilha expandida, na ordem do arrasto
+PAGES = ("home", "water", "agenda")  # páginas da ilha expandida, na ordem do arrasto
 
 
 class PagesMixin:
@@ -23,6 +25,7 @@ class PagesMixin:
         self.pages.set_transition_duration(TRANSITION_MS)
         self.pages.add_named(self.full, "home")
         self.pages.add_named(self.water_page, "water")
+        self.pages.add_named(self.agenda_page, "agenda")
         box.pack_start(self.pages, False, False, 0)
 
         dots = Gtk.Box(spacing=6)
@@ -50,6 +53,8 @@ class PagesMixin:
             return
         if name == "water":
             self.water_page.update(self.cfg)
+        elif name == "agenda":
+            self.agenda_page.update(self.cfg)
         log("page", name)
         self.pages.set_visible_child_name(name)
         self._mark_dot(name)
@@ -61,16 +66,47 @@ class PagesMixin:
         if 0 <= i < len(PAGES):
             self.set_page(PAGES[i])
 
+    def _alert_page(self):
+        """Página do alerta mais importante (reunião > água), ou a inicial."""
+        if self.agenda.alert:
+            return "agenda"
+        return "water" if self.water.alerting else "home"
+
     def _refresh_middle(self):
-        """O que aparece no miolo da pílula: faixa nova > alerta de água > relógio."""
+        """Miolo da pílula: faixa nova > reunião chegando > alerta de água > relógio."""
         if "track_peek" in self._timers:
             name = "track"
+        elif self.agenda.alert:
+            self.meeting_pill.update(self.agenda.alert, datetime.now().astimezone())
+            name = "meeting"
         elif self.water.alerting:
             name = "water"
         else:
             name = "info"
         self.compact.middle.set_visible_child_name(name)
         self._follow_size()
+
+    # --- agenda ---------------------------------------------------------
+    def _on_agenda_change(self):
+        if self.pages.get_visible_child_name() == "agenda":
+            self.agenda_page.update(self.cfg)
+            self._follow_size()
+
+    def _on_agenda_alert(self, ev):
+        log("meeting alert", ev and ev["title"])
+        ctx = self.shell.get_style_context()
+        (ctx.add_class if ev else ctx.remove_class)("meeting-alert")
+        self._refresh_middle()
+        self._on_agenda_change()
+        if self.expanded and not ev and self.pages.get_visible_child_name() == "agenda":
+            return  # o usuário está olhando a agenda: não troca de página
+        if not self.expanded:
+            self.set_page(self._alert_page())
+
+    def _on_agenda_status(self, text, ok):
+        self._on_agenda_change()
+        if self.app.settings:
+            self.app.settings.set_agenda_status(text, ok)
 
     # --- água -----------------------------------------------------------
     def _on_water_change(self):

@@ -31,6 +31,8 @@ from spotify_web import SpotifyWeb  # noqa: E402
 from views import Compact, Expanded, label  # noqa: E402
 from water import Notifier, Water, play_sound  # noqa: E402
 from water_view import DropIcon, WaterPage  # noqa: E402
+from agenda import Agenda  # noqa: E402
+from agenda_view import AgendaPage, MeetingPill  # noqa: E402
 from weather import Weather  # noqa: E402
 from widgets import accent_from_pixbuf  # noqa: E402
 
@@ -63,6 +65,8 @@ class Island(PagesMixin, InputMixin, Gtk.Window):
         self._press = None
         self._hscroll = 0.0
         self.water = Water(cfg, self._on_water_change, self._on_water_alert)
+        self.agenda = Agenda(cfg, self._on_agenda_change, self._on_agenda_alert,
+                             self._on_agenda_status, play_sound)
         self._build()
         self.weather = Weather(self._on_weather, cfg["city"], cfg["units"])
         self.web_status = ("Conectado", True)
@@ -123,6 +127,11 @@ class Island(PagesMixin, InputMixin, Gtk.Window):
             self.weather.configure(cfg["city"], cfg["units"])
         if key == "spotify_client_id":
             self.web.set_client_id(cfg["spotify_client_id"])
+        if key is None or (key or "").startswith("agenda_"):
+            if key in ("agenda_enabled", "agenda_days"):
+                self.agenda.refresh()
+            self.agenda.tick()
+            self._on_agenda_change()
         if key is None or (key or "").startswith("water_"):
             self.water.tick()
             self._on_water_change()
@@ -170,6 +179,7 @@ class Island(PagesMixin, InputMixin, Gtk.Window):
         self.compact = Compact()
         self.full = Expanded(self.player)
         self.water_page = WaterPage(self.water)
+        self.agenda_page = AgendaPage(self.agenda, lambda: self.app.open_settings("agenda"))
         self.stack.add_named(self.compact, "compact")
         self.stack.add_named(self._build_pages(), "expanded")
         self.stack.set_visible_child_name("compact")
@@ -183,6 +193,8 @@ class Island(PagesMixin, InputMixin, Gtk.Window):
         alert.pack_start(msg, False, False, 0)
         alert.pack_start(self.alert_amount, False, False, 0)
         self.compact.middle.add_named(alert, "water")
+        self.meeting_pill = MeetingPill()
+        self.compact.middle.add_named(self.meeting_pill, "meeting")
 
     # --- tamanho --------------------------------------------------------
     def _follow_size(self):
@@ -211,10 +223,10 @@ class Island(PagesMixin, InputMixin, Gtk.Window):
         if value:  # ao expandir, a pílula volta ao relógio para quando fechar
             self._cancel("track_peek")
             self._refresh_middle()
-            if self.water.alerting:
-                self.set_page("water")
-        elif not self.water.alerting:
-            self.set_page("home")
+            if self._alert_page() != "home":
+                self.set_page(self._alert_page())
+        else:
+            self.set_page(self._alert_page())
         self._follow_size()
         if value:
             self._tick_music()
@@ -233,6 +245,9 @@ class Island(PagesMixin, InputMixin, Gtk.Window):
             self._minute = now.minute
             self.compact.set_clock(now, self.cfg["clock_24h"])
             self.full.set_clock(now, self.cfg["clock_24h"])
+            if self.agenda.alert:  # atualiza a contagem regressiva da reunião
+                self._refresh_middle()
+            self._on_agenda_change()
             self._follow_size()
         return True
 
@@ -349,12 +364,16 @@ class App(Gtk.Application):
             self.open_settings()
         return 0
 
-    def open_settings(self):
+    def open_settings(self, page=None):
         log("open_settings", self.settings)
         if self.settings is None:
-            self.settings = Settings(self.island.cfg, self, self.island.web, self.island.water)
-            self.settings.set_spotify_status(*self.island.web_status)
+            isl = self.island
+            self.settings = Settings(isl.cfg, self, isl.web, isl.water, isl.agenda)
+            self.settings.set_spotify_status(*isl.web_status)
+            self.settings.set_agenda_status(*isl.agenda.status)
             self.settings.connect("destroy", lambda *_: setattr(self, "settings", None))
+        if page:
+            self.settings.show_page(page)
         self.settings.present()
 
 

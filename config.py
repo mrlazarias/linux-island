@@ -56,6 +56,16 @@ SCHEMA = {
         "message-new-instant", "complete", "bell", "dialog-information",
         "window-attention", "alarm-clock-elapsed")),
     "water_sound_volume": (70, _int_range(0, 100)),
+    # agenda (Google Calendar, agenda principal)
+    "agenda_enabled": (True, _is_bool),
+    "agenda_alert": (True, _is_bool),
+    "agenda_lead_min": (10, _int_range(0, 60)),
+    "agenda_days": (3, _int_range(1, 7)),
+    "agenda_sound": (True, _is_bool),
+    "agenda_sound_name": ("bell", _choice(
+        "message-new-instant", "complete", "bell", "dialog-information",
+        "window-attention", "alarm-clock-elapsed")),
+    "agenda_sound_volume": (70, _int_range(0, 100)),
     # comportamento
     "hover_expand": (True, _is_bool),
     "peek_on_track": (True, _is_bool),
@@ -155,6 +165,12 @@ def build_css(cfg):
 .island .day {{ background-color: {css_color(fg, 0.05)}; }}
 .island separator {{ background-color: {css_color(fg, 0.1)}; }}
 .island.water-alert {{ border-color: rgb(41,158,245); }}
+.island.meeting-alert {{ border-color: rgb(167,139,250); }}
+.island button.agenda-row {{
+  background: transparent; border: none; box-shadow: none; padding: 6px 8px;
+  border-radius: 12px; color: {css_color(fg)};
+}}
+.island button.agenda-row:hover {{ background: {css_color(fg, 0.07)}; }}
 .island button.page-dot {{
   min-width: 6px; min-height: 6px; padding: 0; border: none; box-shadow: none;
   border-radius: 999px; background: {css_color(fg, 0.25)};

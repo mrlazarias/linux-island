@@ -115,13 +115,14 @@ def set_autostart(enabled):
 
 
 class Settings(SettingsPagesMixin, Gtk.Window):
-    def __init__(self, cfg, app=None, web=None, water=None):
+    def __init__(self, cfg, app=None, web=None, water=None, agenda=None):
         super().__init__(title="linux-island — Configurações")
         if app:
             self.set_application(app)
         self.cfg = cfg
         self.web = web
         self.water = water
+        self.agenda = agenda
         self._sync = {}  # chave -> função que atualiza o widget a partir da config
         self.set_default_size(520, 560)
         self.set_icon_name("preferences-system")
@@ -148,8 +149,11 @@ class Settings(SettingsPagesMixin, Gtk.Window):
         stack.add_titled(self._page_behavior(), "behavior", "Comportamento")
         if water is not None:
             stack.add_titled(self._page_water(), "water", "Água")
+        if agenda is not None:
+            stack.add_titled(self._page_agenda(), "agenda", "Agenda")
         if web is not None:
             stack.add_titled(self._page_spotify(), "spotify", "Spotify")
+        self._stack = stack
         self.add(stack)
 
         cfg.connect(self._on_config)
@@ -157,6 +161,10 @@ class Settings(SettingsPagesMixin, Gtk.Window):
             cfg.disconnect(self._on_config),
             Gtk.StyleContext.remove_provider_for_screen(self.get_screen(), self._css)))
         self.show_all()
+
+    def show_page(self, name):
+        if self._stack.get_child_by_name(name):
+            self._stack.set_visible_child_name(name)
 
     def _restyle(self):
         self._css.load_from_data(settings_css(self.cfg).encode())
