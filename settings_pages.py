@@ -8,37 +8,69 @@ from gi.repository import Gtk
 
 class SettingsPagesMixin:
     def _page_agenda(self):
-        from google_calendar import find_client_secret
         from water import SOUNDS, play_sound
 
         scroll, page = self._page()
         intro = Gtk.Label(xalign=0, wrap=True)
-        intro.set_markup("Mostra os eventos da sua agenda principal do <b>Google</b> e avisa "
-                         "antes das reuniões. Acesso <b>somente leitura</b>.")
+        intro.set_markup("Mostra os eventos da sua agenda e avisa antes das reuniões. "
+                         "Funciona com <b>Google</b>, Outlook, iCloud, Nextcloud — "
+                         "qualquer agenda com link iCal.")
         intro.get_style_context().add_class("dim-label")
         page.pack_start(intro, False, False, 0)
 
-        account = self._group(page, "Conta Google")
-        cs = find_client_secret()
-        src = Gtk.Label(xalign=0, wrap=True, selectable=True)
-        src.get_style_context().add_class("dim-label")
-        if cs:
-            src.set_text(f"Credenciais do app: {cs[0]}")
-        else:
-            src.set_markup("Coloque o <b>google_client_secret.json</b> (tipo Desktop) em "
-                           "~/.config/linux-island/ — veja o README.")
-        box = Gtk.Box()
+        steps = self._group(page, "Como pegar o link no Google Agenda")
+        for n, text in enumerate([
+            'Abra o <a href="https://calendar.google.com/calendar/r/settings">Google Agenda '
+            '→ Configurações</a> no computador.',
+            "Na esquerda, em <b>Configurações das minhas agendas</b>, clique na sua agenda.",
+            "Desça até <b>Integrar agenda</b> e copie o "
+            "<b>Endereço secreto no formato iCal</b>.",
+            "Cole aqui embaixo e clique em <b>Salvar</b>.",
+        ], 1):
+            lb = Gtk.Label(xalign=0, wrap=True)
+            lb.set_markup(f"{n}. {text}")
+            row = Gtk.Box()
+            for side in ("top", "bottom", "start", "end"):
+                getattr(row, f"set_margin_{side}")(9 if side in ("top", "bottom") else 12)
+            row.pack_start(lb, True, True, 0)
+            steps.add(row)
+
+        link = self._group(page, "Link da agenda")
+        self.ag_entry = Gtk.Entry(placeholder_text="https://calendar.google.com/calendar/ical/…")
+        self.ag_entry.set_visibility(False)  # o link dá acesso de leitura à agenda
+        self.ag_entry.set_hexpand(True)
+        self.ag_entry.set_max_length(2000)
+        self.ag_entry.connect("activate", lambda *_: self._agenda_save())
+        if self.agenda.connected:
+            self.ag_entry.set_text(self.agenda.url)
+        eye = Gtk.ToggleButton()
+        eye.add(Gtk.Image.new_from_icon_name("view-reveal-symbolic", Gtk.IconSize.BUTTON))
+        eye.set_tooltip_text("Mostrar o link")
+        eye.connect("toggled", lambda b: self.ag_entry.set_visibility(b.get_active()))
+        box = Gtk.Box(spacing=8)
         for side in ("top", "bottom", "start", "end"):
             getattr(box, f"set_margin_{side}")(10 if side in ("top", "bottom") else 12)
-        box.pack_start(src, True, True, 0)
-        account.add(box)
-        self.ag_status = Gtk.Label(xalign=0)
-        self.ag_button = Gtk.Button()
-        self.ag_button.set_sensitive(cs is not None)
-        self.ag_button.connect("clicked", lambda *_: (
-            self.agenda.disconnect() if self.agenda.connected else self.agenda.login()))
-        self._row(account, "Status", self.ag_button).get_children()[0].pack_start(
+        box.pack_start(self.ag_entry, True, True, 0)
+        box.pack_start(eye, False, False, 0)
+        link.add(box)
+
+        self.ag_status = Gtk.Label(xalign=0, wrap=True)
+        self.ag_save = Gtk.Button(label="Salvar")
+        self.ag_save.get_style_context().add_class("suggested")
+        self.ag_save.connect("clicked", lambda *_: self._agenda_save())
+        self.ag_button = Gtk.Button(label="Remover")
+        self.ag_button.connect("clicked", lambda *_: (self.agenda.disconnect(),
+                                                      self.ag_entry.set_text("")))
+        buttons = Gtk.Box(spacing=8)
+        buttons.pack_start(self.ag_button, False, False, 0)
+        buttons.pack_start(self.ag_save, False, False, 0)
+        self._row(link, "Status", buttons).get_children()[0].pack_start(
             self.ag_status, False, False, 0)
+        hint = Gtk.Label(xalign=0, wrap=True)
+        hint.set_markup("O link fica guardado no chaveiro do sistema. Trate-o como uma senha: "
+                        "quem tiver o link consegue ver sua agenda.")
+        hint.get_style_context().add_class("dim-label")
+        page.pack_start(hint, False, False, 0)
 
         show = self._group(page, "Exibição")
         self._row(show, "Mostrar agenda", self._switch("agenda_enabled"))
@@ -59,6 +91,9 @@ class SettingsPagesMixin:
         self._row(alert, "Volume (%)", vol)
         return scroll
 
+    def _agenda_save(self):
+        self.agenda.set_url(self.ag_entry.get_text())
+
     def set_agenda_status(self, text, ok):
         if not hasattr(self, "ag_status"):
             return
@@ -66,10 +101,7 @@ class SettingsPagesMixin:
         ctx = self.ag_status.get_style_context()
         (ctx.add_class if ok else ctx.remove_class)("ok")
         (ctx.remove_class if ok else ctx.add_class)("dim-label")
-        connected = self.agenda.connected
-        self.ag_button.set_label("Desconectar" if connected else "Conectar")
-        bctx = self.ag_button.get_style_context()
-        (bctx.remove_class if connected else bctx.add_class)("suggested")
+        self.ag_button.set_sensitive(self.agenda.connected)
 
     def _page_water(self):
         scroll, page = self._page()

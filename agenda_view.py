@@ -78,12 +78,13 @@ class AgendaPage(Gtk.Box):
         now = datetime.now().astimezone()
         a = self.agenda
         if not a.connected:
-            self.status.set_text(a.status[0] if a.status[0] != "Não conectado" else "")
-            self._empty("Conecte sua conta do Google para ver seus eventos.",
+            self.status.set_text("")
+            self._empty("Cole o link iCal da sua agenda para ver seus eventos.",
                         pill_button("Configurar", "preferences-system-symbolic",
                                     self.open_settings, "water-snooze"))
         else:
-            self.status.set_text(datetime.now().strftime("atualizado %H:%M"))
+            self.status.set_text(datetime.now().strftime("atualizado %H:%M") if a.status[1]
+                                 else "sem conexão")
             groups = upcoming(now, a.events, cfg["agenda_days"])
             if a.alert:
                 self.body.pack_start(self._next_card(a.alert, now), False, False, 4)
