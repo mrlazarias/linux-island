@@ -41,7 +41,6 @@ EN = {
     "cidade não encontrada: {cidade}": "city not found: {cidade}",
     # menu and command line
     "Configurações…": "Settings…",
-    "Abrir o Spotify": "Open Spotify",
     "Sair": "Quit",
     "Abre as configurações": "Open the settings",
     "Cidade do clima só nesta execução": "Weather city for this run only",
@@ -144,8 +143,6 @@ EN = {
     "Na troca de faixa a pílula se estica com título e artista por 4 s":
         "When the track changes, the pill stretches with title and artist for 4 s",
     "Volume pela rolagem do mouse": "Volume with the mouse wheel",
-    "Role sobre a ilha para aumentar ou baixar o volume do Spotify":
-        "Scroll over the island to raise or lower Spotify's volume",
     "Posição": "Position",
     "Distância do topo (px)": "Distance from the top (px)",
     "Idioma": "Language",
@@ -253,4 +250,11 @@ EN = {
     "32 caracteres": "32 characters",
     "Conectar": "Connect",
     "Desconectar": "Disconnect",
+    # players
+    "Abrir o {app}": "Open {app}",
+    "Players": "Players",
+    "Ignorar players": "Ignore players",
+    "Ex.: firefox, chromium": "E.g. firefox, chromium",
+    "Nomes separados por vírgula — por exemplo, para não mostrar vídeos do navegador": "Names separated by commas — for example, to hide browser videos",
+    "Role sobre a ilha para aumentar ou baixar o volume da música": "Scroll over the island to raise or lower the music volume",
 }

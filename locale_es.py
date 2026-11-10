@@ -41,7 +41,6 @@ ES = {
     "cidade não encontrada: {cidade}": "ciudad no encontrada: {cidade}",
     # menú y línea de comandos
     "Configurações…": "Ajustes…",
-    "Abrir o Spotify": "Abrir Spotify",
     "Sair": "Salir",
     "Abre as configurações": "Abre los ajustes",
     "Cidade do clima só nesta execução": "Ciudad del clima solo en esta ejecución",
@@ -146,8 +145,6 @@ ES = {
     "Na troca de faixa a pílula se estica com título e artista por 4 s":
         "Al cambiar de canción, la píldora se estira con título y artista por 4 s",
     "Volume pela rolagem do mouse": "Volumen con la rueda del ratón",
-    "Role sobre a ilha para aumentar ou baixar o volume do Spotify":
-        "Desplázate sobre la isla para subir o bajar el volumen de Spotify",
     "Posição": "Posición",
     "Distância do topo (px)": "Distancia desde arriba (px)",
     "Idioma": "Idioma",
@@ -258,4 +255,11 @@ ES = {
     "32 caracteres": "32 caracteres",
     "Conectar": "Conectar",
     "Desconectar": "Desconectar",
+    # players
+    "Abrir o {app}": "Abrir {app}",
+    "Players": "Reproductores",
+    "Ignorar players": "Ignorar reproductores",
+    "Ex.: firefox, chromium": "Ej.: firefox, chromium",
+    "Nomes separados por vírgula — por exemplo, para não mostrar vídeos do navegador": "Nombres separados por comas — por ejemplo, para no mostrar videos del navegador",
+    "Role sobre a ilha para aumentar ou baixar o volume da música": "Desplázate sobre la isla para subir o bajar el volumen de la música",
 }
