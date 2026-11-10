@@ -4,6 +4,7 @@ import math
 from gi.repository import Gtk
 
 from views import control, label
+from i18n import _
 
 WATER_BLUE = (0.16, 0.62, 0.96)
 
@@ -111,7 +112,7 @@ class WaterPage(Gtk.Box):
         head = Gtk.Box(spacing=8)
         head.pack_start(DropIcon(18), False, False, 0)
         title = label("title")
-        title.set_text("Hidratação")
+        title.set_text(_("Hidratação"))
         head.pack_start(title, False, False, 0)
         self.status = label("dim small", 1.0)
         head.pack_end(self.status, True, True, 0)
@@ -141,9 +142,9 @@ class WaterPage(Gtk.Box):
         self.drink_btn = Gtk.Button()
         self.drink_btn.get_style_context().add_class("water-main")
         self.drink_btn.set_can_focus(False)
-        self.drink_btn.connect("clicked", lambda *_: self.water.drink())
-        undo, _ = control("edit-undo-symbolic", 16, lambda: self.water.undo())
-        undo.set_tooltip_text("Desfazer um copo")
+        self.drink_btn.connect("clicked", lambda *_a: self.water.drink())
+        undo, _img = control("edit-undo-symbolic", 16, lambda: self.water.undo())
+        undo.set_tooltip_text(_("Desfazer um copo"))
         actions.pack_start(self.drink_btn, False, False, 0)
         actions.pack_start(undo, False, False, 0)
         right.pack_start(actions, False, False, 0)
@@ -152,7 +153,7 @@ class WaterPage(Gtk.Box):
         self.snooze_btn.get_style_context().add_class("water-snooze")
         self.snooze_btn.set_can_focus(False)
         self.snooze_btn.set_halign(Gtk.Align.START)
-        self.snooze_btn.connect("clicked", lambda *_: self.water.snooze())
+        self.snooze_btn.connect("clicked", lambda *_a: self.water.snooze())
         self.snooze_rev = Gtk.Revealer(transition_type=Gtk.RevealerTransitionType.SLIDE_DOWN)
         self.snooze_rev.add(self.snooze_btn)
         right.pack_start(self.snooze_rev, False, False, 0)
@@ -166,10 +167,10 @@ class WaterPage(Gtk.Box):
         consumed = w.consumed
         self.ring.set_fraction(consumed / goal if goal else 0)
         self.amount.set_text(f"{consumed}")
-        self.goal.set_text(f"de {goal} ml")
+        self.goal.set_text(_("de {meta} ml").format(meta=goal))
         self.status.set_text(w.status())
         self.drink_btn.set_label(f"+{cup} ml")
-        self.snooze_btn.set_label(f"Adiar {cfg['water_snooze_min']} min")
+        self.snooze_btn.set_label(_("Adiar {n} min").format(n=cfg["water_snooze_min"]))
         self.snooze_rev.set_reveal_child(w.alerting)
 
         cups = max(1, min(16, round(goal / cup)))

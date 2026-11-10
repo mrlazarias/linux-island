@@ -4,6 +4,7 @@ import os
 from gi.repository import GLib, Gtk
 
 from config import css_color, rgba
+from i18n import LANGUAGES, _
 from settings_pages import SettingsPagesMixin
 
 AUTOSTART = os.path.join(GLib.get_user_config_dir(), "autostart", "linux-island.desktop")
@@ -116,7 +117,7 @@ def set_autostart(enabled):
 
 class Settings(SettingsPagesMixin, Gtk.Window):
     def __init__(self, cfg, app=None, web=None, water=None, agenda=None):
-        super().__init__(title="linux-island — Configurações")
+        super().__init__(title=_("linux-island — Configurações"))
         if app:
             self.set_application(app)
         self.cfg = cfg
@@ -135,30 +136,30 @@ class Settings(SettingsPagesMixin, Gtk.Window):
         self._restyle()
 
         header = Gtk.HeaderBar(show_close_button=True)
-        header.set_title("Configurações")
-        reset = Gtk.Button(label="Restaurar padrões")
-        reset.connect("clicked", lambda *_: self.cfg.reset())
+        header.set_title(_("Configurações"))
+        reset = Gtk.Button(label=_("Restaurar padrões"))
+        reset.connect("clicked", lambda *_a: self.cfg.reset())
         header.pack_end(reset)
         self.set_titlebar(header)
 
         stack = Gtk.Stack(transition_type=Gtk.StackTransitionType.SLIDE_LEFT_RIGHT)
         switcher = Gtk.StackSwitcher(stack=stack)
         header.set_custom_title(switcher)
-        stack.add_titled(self._page_appearance(), "look", "Aparência")
-        stack.add_titled(self._page_clock_weather(), "info", "Relógio e clima")
-        stack.add_titled(self._page_behavior(), "behavior", "Comportamento")
-        stack.add_titled(self._page_notifications(), "notifications", "Notificações")
+        stack.add_titled(self._page_appearance(), "look", _("Aparência"))
+        stack.add_titled(self._page_clock_weather(), "info", _("Relógio e clima"))
+        stack.add_titled(self._page_behavior(), "behavior", _("Comportamento"))
+        stack.add_titled(self._page_notifications(), "notifications", _("Notificações"))
         if water is not None:
-            stack.add_titled(self._page_water(), "water", "Água")
+            stack.add_titled(self._page_water(), "water", _("Água"))
         if agenda is not None:
-            stack.add_titled(self._page_agenda(), "agenda", "Agenda")
+            stack.add_titled(self._page_agenda(), "agenda", _("Agenda"))
         if web is not None:
-            stack.add_titled(self._page_spotify(), "spotify", "Spotify")
+            stack.add_titled(self._page_spotify(), "spotify", _("Spotify"))
         self._stack = stack
         self.add(stack)
 
         cfg.connect(self._on_config)
-        self.connect("destroy", lambda *_: (
+        self.connect("destroy", lambda *_a: (
             cfg.disconnect(self._on_config),
             Gtk.StyleContext.remove_provider_for_screen(self.get_screen(), self._css)))
         self.show_all()
@@ -189,7 +190,7 @@ class Settings(SettingsPagesMixin, Gtk.Window):
 
     @staticmethod
     def _group(parent, title):
-        lb = Gtk.Label(label=title.upper(), xalign=0)
+        lb = Gtk.Label(label=_(title).upper(), xalign=0)
         lb.get_style_context().add_class("section")
         frame = Gtk.Frame()
         listbox = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
@@ -207,10 +208,10 @@ class Settings(SettingsPagesMixin, Gtk.Window):
             getattr(row, f"set_margin_{side}")(10 if side in ("top", "bottom") else 12)
         texts = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         texts.set_valign(Gtk.Align.CENTER)
-        t = Gtk.Label(label=title, xalign=0)
+        t = Gtk.Label(label=_(title), xalign=0)
         texts.pack_start(t, False, False, 0)
         if subtitle:
-            s = Gtk.Label(label=subtitle, xalign=0)
+            s = Gtk.Label(label=_(subtitle), xalign=0)
             s.set_line_wrap(True)
             s.get_style_context().add_class("dim-label")
             texts.pack_start(s, False, False, 0)
@@ -241,10 +242,35 @@ class Settings(SettingsPagesMixin, Gtk.Window):
         self._sync[key] = lambda: sp.set_value(self.cfg[key])
         return sp
 
+    def _text_entry(self, key, max_len, placeholder):
+        """Campo de texto ligado à config, salvando depois de uma pausa na digitação."""
+        entry = Gtk.Entry(text=self.cfg[key], placeholder_text=_(placeholder))
+        entry.set_width_chars(22)
+        entry.set_max_length(max_len)
+        pending = {"id": None}
+
+        def commit(*_a):
+            if pending["id"]:
+                GLib.source_remove(pending["id"])
+                pending["id"] = None
+            self.cfg.set(key, entry.get_text().strip())
+            return False
+
+        def changed(*_a):
+            if pending["id"]:
+                GLib.source_remove(pending["id"])
+            pending["id"] = GLib.timeout_add(800, commit)
+
+        entry.connect("changed", changed)
+        entry.connect("activate", commit)
+        self._sync[key] = lambda: (entry.get_text().strip() != self.cfg[key]
+                                   and entry.set_text(self.cfg[key]))
+        return entry
+
     def _choice(self, key, options):
         combo = Gtk.ComboBoxText()
         for value, label in options:
-            combo.append(value, label)
+            combo.append(value, _(label))
         combo.set_active_id(self.cfg[key])
         combo.connect("changed", lambda c: c.get_active_id() and self.cfg.set(key, c.get_active_id()))
         self._sync[key] = lambda: combo.set_active_id(self.cfg[key])
@@ -306,7 +332,7 @@ class Settings(SettingsPagesMixin, Gtk.Window):
         area.connect("draw", draw)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         box.pack_start(area, False, False, 0)
-        box.pack_start(Gtk.Label(label=name), False, False, 0)
+        box.pack_start(Gtk.Label(label=_(name)), False, False, 0)
         btn = Gtk.Button()
         btn.set_relief(Gtk.ReliefStyle.NONE)
         btn.add(box)
@@ -327,7 +353,7 @@ class Settings(SettingsPagesMixin, Gtk.Window):
         self._row(clock, "Mostrar data na pílula", self._switch("show_date"))
 
         weather = self._group(page, "Clima")
-        entry = Gtk.Entry(text=self.cfg["city"], placeholder_text="Detectar pelo IP")
+        entry = Gtk.Entry(text=self.cfg["city"], placeholder_text=_("Detectar pelo IP"))
         entry.set_width_chars(18)
         entry.set_max_length(100)
         pending = {"id": None}
@@ -363,10 +389,22 @@ class Settings(SettingsPagesMixin, Gtk.Window):
         self._row(hover, "Mostrar a música nova na pílula", self._switch("peek_on_track"),
                   "Na troca de faixa a pílula se estica com título e artista por 4 s")
         self._row(hover, "Volume pela rolagem do mouse", self._switch("scroll_volume"),
-                  "Role sobre a ilha para aumentar ou baixar o volume do Spotify")
+                  "Role sobre a ilha para aumentar ou baixar o volume da música")
+
+        players = self._group(page, "Players")
+        self._row(players, "Ignorar players", self._text_entry("player_ignore", 300,
+                                                                 "Ex.: firefox, chromium"),
+                  "Nomes separados por vírgula — por exemplo, para não mostrar vídeos do navegador")
 
         pos = self._group(page, "Posição")
         self._row(pos, "Distância do topo (px)", self._spin("margin_top", 0, 200))
+
+        lang = self._group(page, "Idioma")
+        self._row(lang, "Idioma da ilha", self._choice("language", LANGUAGES),
+                  "Automático segue o idioma do sistema")
+        restart = Gtk.Button(label=_("Reiniciar agora"))
+        restart.connect("clicked", lambda *_a: self.get_application().restart())
+        self._row(lang, "Aplicar o idioma", restart, "A ilha reinicia para trocar o idioma")
 
         system = self._group(page, "Sistema")
         sw = Gtk.Switch(active=autostart_enabled())

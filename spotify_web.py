@@ -17,6 +17,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from gi.repository import Gio, GLib
 
+from i18n import _
+
 PORT = 8974
 REDIRECT_URI = f"http://127.0.0.1:{PORT}/callback"
 SCOPES = "user-read-playback-state playlist-read-private playlist-read-collaborative"
@@ -71,7 +73,7 @@ def parse_player(data, lookup_name):
     kind, uri = ctx.get("type"), ctx.get("uri") or ""
     name = None
     if kind == "collection":
-        name = "Músicas Curtidas"
+        name = _("Músicas Curtidas")
     elif kind == "album":
         name = ((data.get("item") or {}).get("album") or {}).get("name")
     elif kind in ("playlist", "artist", "show") and uri.count(":") >= 2:
@@ -142,7 +144,7 @@ class SpotifyWeb:
             with urllib.request.urlopen(req, timeout=10) as r:
                 data = json.loads(r.read())
         except urllib.error.HTTPError as e:
-            raise AuthError(f"login recusado ({e.code})") from e
+            raise AuthError(_("login recusado ({codigo})").format(codigo=e.code)) from e
         tok = {"access_token": data["access_token"],
                "expires_at": time.time() + int(data.get("expires_in", 3600)) - 60,
                "refresh_token": data.get("refresh_token") or (self.token or {}).get("refresh_token")}
@@ -150,7 +152,7 @@ class SpotifyWeb:
 
     def _access_token(self, force_refresh=False):
         if not self.connected:
-            raise AuthError("não conectado")
+            raise AuthError(_("não conectado"))
         if force_refresh or time.time() >= self.token.get("expires_at", 0):
             self._token_request({"grant_type": "refresh_token", "client_id": self.client_id,
                                  "refresh_token": self.token["refresh_token"]})
@@ -159,7 +161,7 @@ class SpotifyWeb:
     # --- login (PKCE + servidor local de callback) ----------------------
     def login(self):
         if not self.client_id:
-            self.on_status("Informe o Client ID primeiro", False)
+            self.on_status(_("Informe o Client ID primeiro"), False)
             return
         verifier = secrets.token_urlsafe(64)
         challenge = base64.urlsafe_b64encode(
@@ -173,11 +175,12 @@ class SpotifyWeb:
         try:
             server = HTTPServer(("127.0.0.1", PORT), _make_handler(state))
         except OSError as e:
-            self.on_status(f"Porta {PORT} ocupada: {e.strerror}", False)
+            self.on_status(_("Porta {porta} ocupada: {erro}").format(porta=PORT, erro=e.strerror),
+                           False)
             return
         server.timeout = 1
         server.result = None  # preenchido pelo handler do /callback
-        self.on_status("Aguardando login no navegador…", False)
+        self.on_status(_("Aguardando login no navegador…"), False)
         threading.Thread(target=self._wait_login, args=(server, verifier), daemon=True).start()
         Gio.AppInfo.launch_default_for_uri(url, None)
 
@@ -190,18 +193,18 @@ class SpotifyWeb:
             server.server_close()
         res = server.result
         if res is None:
-            self._emit_status("Tempo de login esgotado", False)
+            self._emit_status(_("Tempo de login esgotado"), False)
         elif "error" in res:
-            self._emit_status(f"Login cancelado: {res['error']}", False)
+            self._emit_status(_("Login cancelado: {erro}").format(erro=res["error"]), False)
         else:
             try:
                 self._token_request({"grant_type": "authorization_code", "code": res["code"],
                                      "redirect_uri": REDIRECT_URI, "client_id": self.client_id,
                                      "code_verifier": verifier})
             except (AuthError, OSError, KeyError, ValueError) as e:
-                self._emit_status(f"Falha no login: {e}", False)
+                self._emit_status(_("Falha no login: {erro}").format(erro=e), False)
                 return
-            self._emit_status("Conectado", True)
+            self._emit_status(_("Conectado"), True)
             GLib.idle_add(lambda: self._start_polling() and False)
 
     def disconnect(self):
@@ -214,7 +217,7 @@ class SpotifyWeb:
             GLib.source_remove(self._poll_id)
             self._poll_id = None
         self.on_playback(None)
-        self.on_status("Desconectado", False)
+        self.on_status(_("Desconectado"), False)
 
     # --- API ------------------------------------------------------------
     def _get(self, path, retry=True):
@@ -245,8 +248,8 @@ class SpotifyWeb:
             except urllib.error.HTTPError:
                 # playlists do próprio Spotify (Daily Mix, editoriais) dão 404 para apps novos
                 self._names[key] = None
-        return self._names[key] or {"playlist": "Playlist", "artist": "Artista",
-                                    "show": "Podcast"}.get(kind)
+        return self._names[key] or {"playlist": _("Playlist"), "artist": _("Artista"),
+                                    "show": _("Podcast")}.get(kind)
 
     # --- polling --------------------------------------------------------
     def _start_polling(self):
@@ -285,7 +288,7 @@ class SpotifyWeb:
             result = parse_player(data, self._lookup_name)
         except AuthError as e:
             ok = False
-            self._emit_status(f"Reconecte: {e}", False)
+            self._emit_status(_("Reconecte: {erro}").format(erro=e), False)
         except (urllib.error.URLError, OSError, ValueError) as e:
             print(f"[island] Spotify Web API indisponível: {e}")
             ok = None  # erro transitório: mantém o que já está na tela
@@ -314,7 +317,7 @@ def _make_handler(expected_state):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
-            msg = "Pronto! Pode fechar esta aba." if "code" in q else "Login cancelado."
+            msg = _("Pronto! Pode fechar esta aba.") if "code" in q else _("Login cancelado.")
             self.wfile.write(
                 f"<html><body style='background:#000;color:#fff;font-family:sans-serif;"
                 f"display:grid;place-items:center;height:100vh;margin:0'>"

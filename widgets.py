@@ -79,7 +79,7 @@ class Equalizer(Gtk.DrawingArea):
     def set_playing(self, playing):
         self.playing = playing
         if playing and self._tick is None:
-            self._tick = self.add_tick_callback(lambda *_: self.queue_draw() or True)
+            self._tick = self.add_tick_callback(lambda *_a: self.queue_draw() or True)
         elif not playing and self._tick is not None:
             self.remove_tick_callback(self._tick)
             self._tick = None
@@ -121,8 +121,8 @@ class Progress(Gtk.DrawingArea):
         self.connect("button-press-event", self._press)
         self.connect("motion-notify-event", self._motion)
         self.connect("button-release-event", self._release)
-        self.connect("enter-notify-event", lambda *_: self._set_hover(True))
-        self.connect("leave-notify-event", lambda *_: self._set_hover(False))
+        self.connect("enter-notify-event", lambda *_a: self._set_hover(True))
+        self.connect("leave-notify-event", lambda *_a: self._set_hover(False))
 
     def _set_hover(self, v):
         self._hover = v

@@ -8,6 +8,8 @@ import urllib.request
 
 from gi.repository import GLib
 
+from i18n import _
+
 CACHE = os.path.join(GLib.get_user_cache_dir(), "linux-island", "location.json")
 LOCATION_TTL = 6 * 3600
 REFRESH_S = 15 * 60
@@ -135,7 +137,7 @@ class Weather:
             q = urllib.parse.urlencode({"name": self.city, "count": 1, "language": "pt"})
             res = _get_json("https://geocoding-api.open-meteo.com/v1/search?" + q).get("results")
             if not res:
-                raise ValueError(f"cidade não encontrada: {self.city}")
+                raise ValueError(_("cidade não encontrada: {cidade}").format(cidade=self.city))
             r = res[0]
             return r["latitude"], r["longitude"], r["name"]
         try:

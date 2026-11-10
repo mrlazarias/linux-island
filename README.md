@@ -1,6 +1,6 @@
 # linux-island
 
-Uma *dynamic island* para o Linux que fica no centro do painel, no lugar do relógio. Ela mostra **hora, data, clima e o que está tocando no Spotify**. Ao passar o mouse, ela se expande com a previsão dos próximos dias e os controles de mídia.
+Uma *dynamic island* para o Linux que fica no centro do painel, no lugar do relógio. Ela mostra **hora, data, clima e o que está tocando**: Spotify, YouTube no navegador, VLC, mpv e outros. Ao passar o mouse, ela se expande com a previsão dos próximos dias e os controles de mídia.
 
 ![Ilha compacta no painel](docs/compact.png)
 
@@ -10,10 +10,11 @@ Feita para o **COSMIC** (Pop!_OS 24.04). Veja a [compatibilidade](#compatibilida
 
 ## Recursos
 
-- **Relógio e data** em português, em 24h.
+- **Relógio e data** em 24h ou 12h, no idioma escolhido.
 - **Clima atual**: temperatura, condição, máxima, mínima e sensação térmica, via [Open-Meteo](https://open-meteo.com/), sem chave de API.
 - **Previsão de 5 dias** com a chance de chuva.
-- **Spotify** via MPRIS/D-Bus:
+- **Qualquer player de música ou vídeo** compatível com MPRIS (Spotify, Firefox, Chrome, VLC, mpv, Rhythmbox…). A ilha mostra o que está tocando agora e, se nada estiver tocando, o último usado. Dá para ignorar players, por exemplo navegadores.
+- **Spotify** e os outros players, via MPRIS/D-Bus:
   - capa, título, artista e uma barra de progresso clicável e arrastável;
   - botões de anterior, play/pause e próxima;
   - **volume**: barra arrastável com botão de mudo, ou rolagem do mouse sobre a ilha, de 5% em 5%;
@@ -30,6 +31,7 @@ Feita para o **COSMIC** (Pop!_OS 24.04). Veja a [compatibilidade](#compatibilida
 - **Agenda do Google**, com contas pessoais e corporativas, somente leitura: uma página com os eventos de hoje e dos próximos dias, e clicar num evento abre o Meet ou o evento no Calendar.
   - Antes de cada reunião, a pílula mostra **"Reunião · em 8 min"** com a borda violeta pulsando e um aviso sonoro.
   - Ao abrir a ilha, aparece o cartão da reunião com **Entrar** e **Dispensar**.
+- **Em português, inglês ou espanhol**: a ilha segue o idioma do sistema, ou o que você escolher, incluindo datas, clima e todas as telas.
 - **Animações**: a pílula muda de tamanho e de arredondamento ao expandir, e a capa e o equalizador deslizam pra dentro quando a música começa.
 - **Leve**: Python + GTK3, sem polling de metadados. O Spotify avisa por D-Bus quando algo muda.
 
@@ -40,9 +42,9 @@ Feita para o **COSMIC** (Pop!_OS 24.04). Veja a [compatibilidade](#compatibilida
 | Passar o mouse | expande |
 | Clique esquerdo numa área livre | abre ou fecha |
 | Clique do meio | play / pause |
-| Rolar sobre a ilha | volume do Spotify (±5%) |
+| Rolar sobre a ilha | volume da música (±5%) |
 | Clicar numa notificação na pílula | abre o app que notificou |
-| Clique direito | menu: Configurações, Abrir o Spotify, Sair |
+| Clique direito | menu: Configurações, abrir o player que está tocando, Sair |
 | Clicar ou arrastar na barra | pula para o ponto da música |
 | Arrastar para o lado (com a ilha aberta) | troca de página: música/clima ↔ água ↔ agenda |
 | Dois dedos para o lado no touchpad, ou clicar nos pontinhos | troca de página |
@@ -98,7 +100,7 @@ Clique com o botão direito na ilha e escolha **Configurações…**, ou rode `.
 |---|---|
 | **Aparência** | temas prontos (Clássico, Vidro, Claro, Spotify, Grafite), cor de fundo com transparência, cor do texto, cor de destaque fixa ou automática pela capa, arredondamento, borda |
 | **Relógio e clima** | 12h/24h, data na pílula, cidade (vazio = detectar pelo IP), °C ou °F, clima na pílula |
-| **Comportamento** | expandir no hover, atraso do hover, mostrar a música nova na pílula, volume pela rolagem, distância do topo, iniciar com a sessão |
+| **Comportamento** | expandir no hover, atraso do hover, mostrar a música nova na pílula, volume pela rolagem, players ignorados, distância do topo, idioma, iniciar com a sessão |
 
 | **Agenda** | entrar/sair da conta Google, mostrar agenda, dias à frente, avisar na pílula, quanto antes, som, volume |
 | **Notificações** | mostrar na pílula, não perturbe, duração, mostrar o texto, apps ignorados |
@@ -183,12 +185,13 @@ EOF
 | `agenda_view.py` | página "Agenda" e o aviso de reunião na pílula |
 | `pages.py` | páginas da ilha expandida e prioridade do miolo da pílula |
 | `notifications.py` | observa as notificações do sistema e as mostra na pílula |
+| `i18n.py`, `locale_en.py`, `locale_es.py` | idioma da interface e as traduções |
 | `water.py` | lembrete de água: estado do dia, agenda e notificação |
 | `water_view.py` | página "Hidratação" (anel, gotas, botões) |
 | `settings_pages.py` | abas Água e Spotify das configurações |
 | `widgets.py` | capa arredondada, equalizador e barra de progresso desenhados com cairo |
 | `spotify_web.py` | Spotify Web API: login OAuth PKCE, playlist e dispositivo em reprodução |
-| `spotify.py` | cliente MPRIS (`org.mpris.MediaPlayer2.spotify`), posição interpolada e download da capa |
+| `players.py` | players MPRIS: descobre todos, escolhe o ativo, faixa, capa, posição, volume e controles |
 | `weather.py` | localização (cidade via geocoding do Open-Meteo ou IP via ipwho.is) e previsão |
 | `style.css` | aparência |
 
@@ -220,10 +223,10 @@ Para depurar, rode com `ISLAND_DEBUG=1 ./run.sh` e acompanhe os eventos no termi
 - [x] Playlist e dispositivo em reprodução (Spotify Web API)
 - [x] Lembrete de beber água (configurável)
 - [x] Agenda do Google com aviso de reunião
-- [ ] Outros players MPRIS (Firefox, VLC, mpv…)
+- [x] Outros players MPRIS (Firefox, Chrome, VLC, mpv…)
 - [x] Notificações na ilha
 - [x] Volume (barra, mudo e rolagem do mouse)
-- [ ] Idioma configurável
+- [x] Idioma configurável (português, inglês e espanhol)
 
 ## Licença
 

@@ -11,6 +11,8 @@ from datetime import datetime, timedelta
 
 from gi.repository import Gio, GLib
 
+from i18n import _
+
 SOUND_DIR = "/usr/share/sounds/freedesktop/stereo"
 SOUNDS = [  # id do arquivo .oga -> nome na UI
     ("message-new-instant", "Mensagem"),
@@ -61,17 +63,17 @@ def next_reminder(now, state, cfg):
 def status_text(now, state, cfg):
     goal = cfg["water_goal_ml"]
     if not cfg["water_enabled"]:
-        return "Lembretes desligados"
+        return _("Lembretes desligados")
     if state["consumed"] >= goal:
-        return "Meta de hoje batida!"
+        return _("Meta de hoje batida!")
     nxt = next_reminder(now, state, cfg)
     if nxt is None:
-        _, w_end = window(now, cfg["water_start_h"], cfg["water_end_h"])
-        return "Sem lembretes até amanhã" if now >= w_end - timedelta(minutes=1) else \
-            "Último lembrete do dia já passou"
+        _w_start, w_end = window(now, cfg["water_start_h"], cfg["water_end_h"])
+        return (_("Sem lembretes até amanhã") if now >= w_end - timedelta(minutes=1)
+                else _("Último lembrete do dia já passou"))
     if nxt <= now:
-        return "Hora de beber água!"
-    return f"Próximo lembrete às {nxt.strftime('%H:%M')}"
+        return _("Hora de beber água!")
+    return _("Próximo lembrete às {hora}").format(hora=nxt.strftime("%H:%M"))
 
 
 def play_sound(name, volume):
@@ -206,8 +208,9 @@ class Notifier:
         except GLib.Error:
             return
         params = GLib.Variant("(susssasa{sv}i)", (
-            "linux-island", self.id, "dialog-information-symbolic", "Hora de beber água",
-            f"Hoje: {consumed} de {goal} ml", ["drink", "Bebi", "snooze", "Adiar"], {}, 0))
+            "linux-island", self.id, "dialog-information-symbolic", _("Hora de beber água"),
+            _("Hoje: {feito} de {meta} ml").format(feito=consumed, meta=goal),
+            ["drink", _("Bebi"), "snooze", _("Adiar")], {}, 0))
 
         def done(b, res):
             try:

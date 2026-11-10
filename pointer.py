@@ -8,6 +8,8 @@ import time
 
 from gi.repository import Gdk, GLib, Gtk
 
+from i18n import _
+
 DEBUG = bool(os.environ.get("ISLAND_DEBUG"))
 CLICK_SLOP_PX = 8        # até isso de movimento, ainda é clique
 SWIPE_PX = 50            # a partir disso, arrastar para o lado troca de página
@@ -177,10 +179,11 @@ class InputMixin:
 
     def _menu(self, ev):
         menu = Gtk.Menu()
-        items = [("Configurações…", self.app.open_settings)]
+        items = [(_("Configurações…"), self.app.open_settings)]
         if self.player.proxy:
-            items.append(("Abrir o Spotify", self.player.raise_window))
-        items += [(None, None), ("Sair", self.app.quit)]
+            items.append((_("Abrir o {app}").format(app=self.player.name),
+                          self.player.raise_window))
+        items += [(None, None), (_("Sair"), self.app.quit)]
         for text, cb in items:
             item = Gtk.SeparatorMenuItem() if text is None else Gtk.MenuItem(label=text)
             if cb:
