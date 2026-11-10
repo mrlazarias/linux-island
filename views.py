@@ -382,3 +382,31 @@ class Expanded(Gtk.Box):
     def set_position(self, pos, length):
         self.t_cur.set_text(fmt_time(pos))
         self.progress.set_fraction(pos / length if length else 0)
+
+
+class NotifPill(Gtk.Box):
+    """Miolo da pílula com uma notificação: [ícone] título · texto."""
+
+    def __init__(self):
+        super().__init__(spacing=8)
+        self.img = Gtk.Image()
+        self.img.set_pixel_size(16)
+        self.title = label("clock")
+        self.sep = label("dim")
+        self.sep.set_text("·")
+        self.body = label("dim")
+        for w in (self.img, self.title, self.sep, self.body):
+            self.pack_start(w, False, False, 0)
+
+    def update(self, n, show_body):
+        if n.icon is not None:
+            self.img.set_from_gicon(n.icon, Gtk.IconSize.BUTTON)
+        else:
+            self.img.set_from_icon_name("preferences-system-notifications-symbolic",
+                                        Gtk.IconSize.BUTTON)
+        self.img.set_pixel_size(16)
+        self.title.set_text(clip(n.summary, 30))
+        body = clip(n.body, 40) if show_body else ""
+        self.body.set_text(body)
+        self.sep.set_visible(bool(body))
+        self.body.set_visible(bool(body))

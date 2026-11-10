@@ -3,10 +3,53 @@
 Mixin de settings.Settings: usa self.cfg, self.web, self._page, self._group,
 self._row, self._switch, self._spin e self._sync de lá.
 """
-from gi.repository import Gtk
+from gi.repository import GLib, Gtk
 
 
 class SettingsPagesMixin:
+    def _page_notifications(self):
+        scroll, page = self._page()
+        intro = Gtk.Label(xalign=0, wrap=True)
+        intro.set_markup("Quando um app manda uma notificação, a pílula se estica por alguns "
+                         "segundos mostrando quem notificou e o que disse. Clique nela para "
+                         "abrir o app.")
+        intro.get_style_context().add_class("dim-label")
+        page.pack_start(intro, False, False, 0)
+
+        main = self._group(page, "Notificações")
+        self._row(main, "Mostrar notificações na pílula", self._switch("notif_enabled"))
+        self._row(main, "Não perturbe", self._switch("notif_dnd"),
+                  "Pausa as notificações na ilha (as do sistema continuam normais)")
+        self._row(main, "Duração (s)", self._spin("notif_duration_s", 2, 15))
+        self._row(main, "Mostrar o texto", self._switch("notif_show_body"),
+                  "Desligado: só o título aparece, para mais privacidade")
+
+        ignore = self._group(page, "Apps ignorados")
+        entry = Gtk.Entry(text=self.cfg["notif_ignore"], placeholder_text="Ex.: Spotify, Slack")
+        entry.set_width_chars(26)
+        entry.set_max_length(500)
+        pending = {"id": None}
+
+        def commit(*_):
+            if pending["id"]:
+                GLib.source_remove(pending["id"])
+                pending["id"] = None
+            self.cfg.set("notif_ignore", entry.get_text().strip())
+            return False
+
+        def changed(*_):
+            if pending["id"]:
+                GLib.source_remove(pending["id"])
+            pending["id"] = GLib.timeout_add(800, commit)
+
+        entry.connect("changed", changed)
+        entry.connect("activate", commit)
+        self._sync["notif_ignore"] = lambda: (
+            entry.get_text().strip() != self.cfg["notif_ignore"]
+            and entry.set_text(self.cfg["notif_ignore"]))
+        self._row(ignore, "Não mostrar de", entry, "Nomes dos apps, separados por vírgula")
+        return scroll
+
     def _page_agenda(self):
         from google_calendar import find_client_secret
         from water import SOUNDS, play_sound

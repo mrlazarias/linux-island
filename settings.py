@@ -147,6 +147,7 @@ class Settings(SettingsPagesMixin, Gtk.Window):
         stack.add_titled(self._page_appearance(), "look", "Aparência")
         stack.add_titled(self._page_clock_weather(), "info", "Relógio e clima")
         stack.add_titled(self._page_behavior(), "behavior", "Comportamento")
+        stack.add_titled(self._page_notifications(), "notifications", "Notificações")
         if water is not None:
             stack.add_titled(self._page_water(), "water", "Água")
         if agenda is not None:

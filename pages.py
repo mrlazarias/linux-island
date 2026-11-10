@@ -5,7 +5,9 @@ self.shell, self.cfg, self.app, self._timers e self._follow_size dela.
 """
 from datetime import datetime
 
-from gi.repository import Gtk
+from gi.repository import Gio, Gtk
+
+from notifications import OWN_APP, parse_ignore
 
 from pointer import log
 from water import play_sound
@@ -73,8 +75,10 @@ class PagesMixin:
         return "water" if self.water.alerting else "home"
 
     def _refresh_middle(self):
-        """Miolo da pílula: faixa nova > reunião chegando > alerta de água > relógio."""
-        if "track_peek" in self._timers:
+        """Miolo da pílula: notificação > faixa nova > reunião > água > relógio."""
+        if "notif_peek" in self._timers:
+            name = "notif"
+        elif "track_peek" in self._timers:
             name = "track"
         elif self.agenda.alert:
             self.meeting_pill.update(self.agenda.alert, datetime.now().astimezone())
@@ -85,6 +89,49 @@ class PagesMixin:
             name = "info"
         self.compact.middle.set_visible_child_name(name)
         self._follow_size()
+
+    # --- notificações de outros apps ----------------------------------------
+    def _on_notification(self, n):
+        cfg = self.cfg
+        if (not cfg["notif_enabled"] or cfg["notif_dnd"] or self.expanded
+                or n.app.lower() == OWN_APP
+                or n.app.lower() in parse_ignore(cfg["notif_ignore"])):
+            return
+        log("notificação", n.app)
+        last = self._notif_queue[-1] if self._notif_queue else self._notif_current
+        if last and (last.app, last.summary, last.body) == (n.app, n.summary, n.body):
+            return  # repetida
+        self._notif_queue = (self._notif_queue + [n])[-5:]
+        if "notif_peek" not in self._timers:
+            self._show_next_notification()
+
+    def _show_next_notification(self):
+        if not self._notif_queue or self.expanded:
+            self._notif_queue = []
+            self._notif_current = None
+            self._refresh_middle()
+            return
+        self._notif_current = self._notif_queue.pop(0)
+        self.notif_pill.update(self._notif_current, self.cfg["notif_show_body"])
+        self._later("notif_peek", self.cfg["notif_duration_s"] * 1000,
+                    self._show_next_notification)
+        self._refresh_middle()
+
+    def open_notification_app(self):
+        """Clique na pílula durante uma notificação: abre o app, se der para saber qual."""
+        n = self._notif_current if "notif_peek" in self._timers else None
+        if not n or not n.desktop_entry:
+            return False
+        try:
+            info = Gio.DesktopAppInfo.new(n.desktop_entry + ".desktop")
+        except TypeError:
+            info = None
+        if info is None:
+            return False
+        info.launch([], None)
+        self._cancel("notif_peek")
+        self._show_next_notification()
+        return True
 
     # --- agenda ---------------------------------------------------------
     def _on_agenda_change(self):

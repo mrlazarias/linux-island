@@ -66,6 +66,12 @@ SCHEMA = {
         "message-new-instant", "complete", "bell", "dialog-information",
         "window-attention", "alarm-clock-elapsed")),
     "agenda_sound_volume": (70, _int_range(0, 100)),
+    # notificações de outros apps na pílula
+    "notif_enabled": (True, _is_bool),
+    "notif_dnd": (False, _is_bool),
+    "notif_duration_s": (5, _int_range(2, 15)),
+    "notif_show_body": (True, _is_bool),
+    "notif_ignore": ("Spotify", lambda v: isinstance(v, str) and len(v) <= 500),
     # comportamento
     "hover_expand": (True, _is_bool),
     "peek_on_track": (True, _is_bool),
