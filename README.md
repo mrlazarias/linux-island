@@ -26,6 +26,9 @@ Feita para o **COSMIC** (Pop!_OS 24.04). Veja a [compatibilidade](#compatibilida
   - **Aviso sonoro** ao lembrar: dá para escolher o som e o volume, e testar nas configurações.
   - Notificação do sistema opcional, com **Bebi** e **Adiar**.
   - O contador zera sozinho na virada do dia.
+- **Agenda do Google**, com contas pessoais e corporativas, somente leitura: uma página com os eventos de hoje e dos próximos dias, e clicar num evento abre o Meet ou o evento no Calendar.
+  - Antes de cada reunião, a pílula mostra **"Reunião · em 8 min"** com a borda violeta pulsando e um aviso sonoro.
+  - Ao abrir a ilha, aparece o cartão da reunião com **Entrar** e **Dispensar**.
 - **Animações**: a pílula muda de tamanho e de arredondamento ao expandir, e a capa e o equalizador deslizam pra dentro quando a música começa.
 - **Leve**: Python + GTK3, sem polling de metadados. O Spotify avisa por D-Bus quando algo muda.
 
@@ -39,7 +42,7 @@ Feita para o **COSMIC** (Pop!_OS 24.04). Veja a [compatibilidade](#compatibilida
 | Rolar sobre a ilha | volume do Spotify (±5%) |
 | Clique direito | menu: Configurações, Abrir o Spotify, Sair |
 | Clicar ou arrastar na barra | pula para o ponto da música |
-| Arrastar para o lado (com a ilha aberta) | troca de página: música/clima ↔ água |
+| Arrastar para o lado (com a ilha aberta) | troca de página: música/clima ↔ água ↔ agenda |
 | Dois dedos para o lado no touchpad, ou clicar nos pontinhos | troca de página |
 
 ## Compatibilidade
@@ -95,6 +98,7 @@ Clique com o botão direito na ilha e escolha **Configurações…**, ou rode `.
 | **Relógio e clima** | 12h/24h, data na pílula, cidade (vazio = detectar pelo IP), °C ou °F, clima na pílula |
 | **Comportamento** | expandir no hover, atraso do hover, mostrar a música nova na pílula, volume pela rolagem, distância do topo, iniciar com a sessão |
 
+| **Agenda** | entrar/sair da conta Google, mostrar agenda, dias à frente, avisar na pílula, quanto antes, som, volume |
 | **Água** | ligar/desligar, intervalo, adiar por, meta diária, tamanho do copo, horário de início e fim, aviso sonoro (som, volume, testar), notificação do sistema, zerar hoje |
 | **Spotify** | Client ID do seu app, conectar e desconectar a conta |
 
@@ -114,6 +118,28 @@ O MPRIS do Spotify não diz qual playlist está tocando nem em qual aparelho. Po
 3. Copie o **Client ID**, cole em *Configurações → Spotify* e clique em **Conectar**. O navegador abre para você autorizar.
 
 No modo de desenvolvimento, o Spotify permite até 5 usuários por app, adicionados em *User Management*. Playlists do próprio Spotify (Daily Mix, Descobertas da Semana) aparecem só como "Playlist", porque a API não devolve o nome delas para apps novos.
+
+### Agenda (Google)
+
+Em *clique direito → Configurações → Agenda*, clique em **Entrar com Google** e autorize no navegador. O acesso é somente leitura (`calendar.readonly`) e lê só a agenda principal. Funciona com Gmail e com contas Google Workspace, desde que o administrador da empresa não bloqueie apps de terceiros.
+
+<details>
+<summary>Para quem mantém ou empacota o projeto: as credenciais do app do Google</summary>
+
+O login usa um app OAuth do tipo **App para computador**. A ilha procura as credenciais, nesta ordem:
+
+1. `~/.config/linux-island/google_client_secret.json`: um app próprio, se você quiser usar o seu.
+2. `google_client.json` na pasta do projeto: o app oficial do linux-island, distribuído junto com o código.
+
+Para criar o app:
+
+1. No [Google Cloud Console](https://console.cloud.google.com/), crie um projeto e ative a **Google Calendar API**.
+2. Em **Tela de consentimento OAuth**, escolha o tipo **Externo**, adicione o escopo `calendar.readonly` e **publique o app** ("Em produção"). Em modo de teste, só usuários cadastrados conseguem entrar, e o login expira a cada 7 dias.
+3. Em **Credenciais → Criar credenciais → ID do cliente OAuth → App para computador**, baixe o JSON.
+
+Enquanto o app não passar pela verificação do Google, quem entrar vê o aviso "O Google não verificou este app" e precisa clicar em *Avançado → Acessar*. O limite é de 100 usuários. Em apps de computador, o *client secret* não é sigiloso: o Google trata o cliente como público e a segurança vem do PKCE. Por isso ele pode ir junto com o código.
+
+</details>
 
 ### Substituir o relógio do COSMIC
 
@@ -148,6 +174,11 @@ EOF
 | `settings.py` | janela de configurações |
 | `views.py` | conteúdo dos modos compacto e expandido |
 | `pointer.py` | mouse: hover, clique, arrastar para trocar de página, rolagem e menu |
+| `agenda.py` | agenda: eventos normalizados, aviso de reunião e contagem regressiva (lógica pura) e a busca periódica |
+| `google_calendar.py` | Google Calendar: login OAuth de computador (PKCE) e leitura dos eventos |
+| `secret_store.py` | guarda segredos (o token do Google) no chaveiro do sistema |
+| `agenda_view.py` | página "Agenda" e o aviso de reunião na pílula |
+| `pages.py` | páginas da ilha expandida e prioridade do miolo da pílula |
 | `water.py` | lembrete de água: estado do dia, agenda e notificação |
 | `water_view.py` | página "Hidratação" (anel, gotas, botões) |
 | `settings_pages.py` | abas Água e Spotify das configurações |
@@ -173,6 +204,7 @@ Para depurar, rode com `ISLAND_DEBUG=1 ./run.sh` e acompanhe os eventos no termi
 - Para descobrir a cidade, o seu IP é enviado ao [ipwho.is](https://ipwho.is/), a não ser que você use `--city`. O resultado fica em cache por 6 horas em `~/.cache/linux-island/`.
 - As coordenadas são enviadas ao [Open-Meteo](https://open-meteo.com/) para buscar a previsão.
 - Se você conectar a Web API, o login é OAuth PKCE (sem segredo) e pede só permissão de leitura: `user-read-playback-state`, `playlist-read-private` e `playlist-read-collaborative`. O token fica em `~/.config/linux-island/spotify-token.json`, legível só pelo seu usuário. Para revogar, use **Desconectar** ou acesse [spotify.com/account/apps](https://www.spotify.com/account/apps/).
+- Se você entrar com o Google, o login é OAuth com PKCE e só permissão de leitura (`calendar.readonly`). O token fica no chaveiro do sistema (libsecret), ou num arquivo legível só pelo seu usuário quando não houver chaveiro. **Sair da conta** apaga o token e revoga o acesso no Google.
 - O contador de água fica só no seu computador, em `~/.local/state/linux-island/water.json`.
 - As capas são baixadas do CDN do Spotify e guardadas em `~/.cache/linux-island/art/`.
 
@@ -181,11 +213,11 @@ Para depurar, rode com `ISLAND_DEBUG=1 ./run.sh` e acompanhe os eventos no termi
 - [x] Menu de configurações (cores, temas, cidade, unidades, comportamento)
 - [x] Playlist e dispositivo em reprodução (Spotify Web API)
 - [x] Lembrete de beber água (configurável)
+- [x] Agenda do Google com aviso de reunião
 - [ ] Outros players MPRIS (Firefox, VLC, mpv…)
 - [ ] Notificações na ilha
 - [x] Volume (barra, mudo e rolagem do mouse)
 - [ ] Idioma configurável
-- [ ] Calendário no modo expandido
 
 ## Licença
 

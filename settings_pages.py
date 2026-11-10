@@ -7,6 +7,69 @@ from gi.repository import Gtk
 
 
 class SettingsPagesMixin:
+    def _page_agenda(self):
+        from google_calendar import find_client_secret
+        from water import SOUNDS, play_sound
+
+        scroll, page = self._page()
+        intro = Gtk.Label(xalign=0, wrap=True)
+        intro.set_markup("Mostra os eventos da sua agenda principal do <b>Google</b> e avisa "
+                         "antes das reuniões. Funciona com contas pessoais e corporativas; "
+                         "o acesso é <b>somente leitura</b>.")
+        intro.get_style_context().add_class("dim-label")
+        page.pack_start(intro, False, False, 0)
+
+        account = self._group(page, "Conta Google")
+        has_app = find_client_secret() is not None
+        if not has_app:
+            warn = Gtk.Label(xalign=0, wrap=True)
+            warn.set_markup("As credenciais do app do Google não estão configuradas nesta "
+                            "instalação — veja a seção <b>Agenda</b> do README.")
+            warn.get_style_context().add_class("dim-label")
+            box = Gtk.Box()
+            for side in ("top", "bottom", "start", "end"):
+                getattr(box, f"set_margin_{side}")(10 if side in ("top", "bottom") else 12)
+            box.pack_start(warn, True, True, 0)
+            account.add(box)
+        self.ag_status = Gtk.Label(xalign=0)
+        self.ag_button = Gtk.Button()
+        self.ag_button.set_sensitive(has_app)
+        self.ag_button.connect("clicked", lambda *_: (
+            self.agenda.disconnect() if self.agenda.connected else self.agenda.login()))
+        self._row(account, "Status", self.ag_button).get_children()[0].pack_start(
+            self.ag_status, False, False, 0)
+
+        show = self._group(page, "Exibição")
+        self._row(show, "Mostrar agenda", self._switch("agenda_enabled"))
+        self._row(show, "Dias à frente", self._spin("agenda_days", 1, 7))
+
+        alert = self._group(page, "Aviso de reunião")
+        self._row(alert, "Avisar na pílula", self._switch("agenda_alert"),
+                  "A pílula mostra a reunião com contagem regressiva")
+        self._row(alert, "Quanto antes (min)", self._spin("agenda_lead_min", 0, 60, 5))
+        self._row(alert, "Tocar som", self._switch("agenda_sound"))
+        self._row(alert, "Som", self._choice("agenda_sound_name", SOUNDS))
+        test = Gtk.Button(label="Testar")
+        test.connect("clicked", lambda *_: play_sound(self.cfg["agenda_sound_name"],
+                                                      self.cfg["agenda_sound_volume"]))
+        vol = Gtk.Box(spacing=8)
+        vol.pack_start(self._spin("agenda_sound_volume", 0, 100, 10), False, False, 0)
+        vol.pack_start(test, False, False, 0)
+        self._row(alert, "Volume (%)", vol)
+        return scroll
+
+    def set_agenda_status(self, text, ok):
+        if not hasattr(self, "ag_status"):
+            return
+        self.ag_status.set_text(text)
+        ctx = self.ag_status.get_style_context()
+        (ctx.add_class if ok else ctx.remove_class)("ok")
+        (ctx.remove_class if ok else ctx.add_class)("dim-label")
+        connected = self.agenda.connected
+        self.ag_button.set_label("Sair da conta" if connected else "Entrar com Google")
+        bctx = self.ag_button.get_style_context()
+        (bctx.remove_class if connected else bctx.add_class)("suggested")
+
     def _page_water(self):
         scroll, page = self._page()
         main = self._group(page, "Lembrete")

@@ -128,3 +128,14 @@ separator {
 .island button.page-dot {
   transition: all 200ms ease;
 }
+
+/* aviso de reunião */
+@keyframes meeting-pulse {
+  from { border-color: rgba(167, 139, 250, 0.95); }
+  to { border-color: rgba(167, 139, 250, 0.25); }
+}
+
+.island.meeting-alert {
+  border: 1px solid rgb(167, 139, 250);
+  animation: meeting-pulse 1.1s ease-in-out infinite alternate;
+}
