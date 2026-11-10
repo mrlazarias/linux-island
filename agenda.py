@@ -24,6 +24,11 @@ DIAS = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
 
 
 # --- lógica pura -----------------------------------------------------------------
+def is_google_public(url):
+    """Endereço público do Google (…/public/basic.ics): só funciona se a agenda for pública."""
+    return "calendar.google.com/calendar/ical/" in url and "/public/" in url
+
+
 def alert_event(now, events, lead_min):
     """Reunião que deve aparecer na pílula agora: start - lead <= now < start + GRACE."""
     lead = timedelta(minutes=lead_min)
@@ -161,8 +166,12 @@ class Agenda:
                     raise ValueError("o link não devolveu uma agenda iCal")
                 events = ical.events_between(text, start, end, ical.owner_from_url(url))
             except urllib.error.HTTPError as e:
-                err = f"o servidor respondeu {e.code}" + (
-                    " — o link foi trocado ou removido?" if e.code in (401, 403, 404) else "")
+                if e.code in (401, 403, 404) and is_google_public(url):
+                    err = ("esse é o endereço PÚBLICO, que só funciona com a agenda pública. "
+                           "Use o “Endereço secreto no formato iCal” (tem private- no link)")
+                else:
+                    err = f"o servidor respondeu {e.code}" + (
+                        " — o link foi trocado ou removido?" if e.code in (401, 403, 404) else "")
             except (urllib.error.URLError, OSError) as e:
                 err = "sem conexão"  # mantém os eventos que já estavam na tela
                 print(f"[island] agenda indisponível: {getattr(e, 'reason', e)}")

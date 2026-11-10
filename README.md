@@ -126,7 +126,7 @@ Basta colar o **link iCal secreto** da sua agenda. Não precisa de conta de dese
 **Google Agenda:**
 1. Abra o [Google Agenda → Configurações](https://calendar.google.com/calendar/r/settings) no computador.
 2. Na esquerda, em **Configurações das minhas agendas**, clique na sua agenda.
-3. Em **Integrar agenda**, copie o **Endereço secreto no formato iCal**.
+3. Em **Integrar agenda**, copie o **Endereço secreto no formato iCal** (tem `private-` no link). O *endereço público* só funciona se a agenda estiver pública e dá erro 404.
 4. Na ilha, abra *clique direito → Configurações → Agenda*, cole o link e clique em **Salvar**.
 
 **Outlook:** *Configurações → Calendário → Calendários compartilhados → Publicar um calendário*, copie o link ICS. **iCloud:** compartilhe a agenda como *Agenda pública* e copie o link (`webcal://` também funciona).

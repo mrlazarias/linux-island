@@ -24,7 +24,8 @@ class SettingsPagesMixin:
             '→ Configurações</a> no computador.',
             "Na esquerda, em <b>Configurações das minhas agendas</b>, clique na sua agenda.",
             "Desça até <b>Integrar agenda</b> e copie o "
-            "<b>Endereço secreto no formato iCal</b>.",
+            "<b>Endereço secreto no formato iCal</b> — não o público, que só funciona "
+            "com a agenda pública.",
             "Cole aqui embaixo e clique em <b>Salvar</b>.",
         ], 1):
             lb = Gtk.Label(xalign=0, wrap=True)
