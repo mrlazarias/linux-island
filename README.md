@@ -26,7 +26,7 @@ Feita para o **COSMIC** (Pop!_OS 24.04). Veja a [compatibilidade](#compatibilida
   - **Aviso sonoro** ao lembrar: dá para escolher o som e o volume, e testar nas configurações.
   - Notificação do sistema opcional, com **Bebi** e **Adiar**.
   - O contador zera sozinho na virada do dia.
-- **Agenda** do Google, Outlook, iCloud, Nextcloud, ou qualquer agenda com link iCal: uma página com os eventos de hoje e dos próximos dias, e clicar numa reunião abre o Meet, Zoom ou Teams.
+- **Agenda do Google**, com contas pessoais e corporativas, somente leitura: uma página com os eventos de hoje e dos próximos dias, e clicar num evento abre o Meet ou o evento no Calendar.
   - Antes de cada reunião, a pílula mostra **"Reunião · em 8 min"** com a borda violeta pulsando e um aviso sonoro.
   - Ao abrir a ilha, aparece o cartão da reunião com **Entrar** e **Dispensar**.
 - **Animações**: a pílula muda de tamanho e de arredondamento ao expandir, e a capa e o equalizador deslizam pra dentro quando a música começa.
@@ -98,7 +98,7 @@ Clique com o botão direito na ilha e escolha **Configurações…**, ou rode `.
 | **Relógio e clima** | 12h/24h, data na pílula, cidade (vazio = detectar pelo IP), °C ou °F, clima na pílula |
 | **Comportamento** | expandir no hover, atraso do hover, mostrar a música nova na pílula, volume pela rolagem, distância do topo, iniciar com a sessão |
 
-| **Agenda** | link iCal da agenda, mostrar agenda, dias à frente, avisar na pílula, quanto antes, som, volume |
+| **Agenda** | entrar/sair da conta Google, mostrar agenda, dias à frente, avisar na pílula, quanto antes, som, volume |
 | **Água** | ligar/desligar, intervalo, adiar por, meta diária, tamanho do copo, horário de início e fim, aviso sonoro (som, volume, testar), notificação do sistema, zerar hoje |
 | **Spotify** | Client ID do seu app, conectar e desconectar a conta |
 
@@ -119,19 +119,27 @@ O MPRIS do Spotify não diz qual playlist está tocando nem em qual aparelho. Po
 
 No modo de desenvolvimento, o Spotify permite até 5 usuários por app, adicionados em *User Management*. Playlists do próprio Spotify (Daily Mix, Descobertas da Semana) aparecem só como "Playlist", porque a API não devolve o nome delas para apps novos.
 
-### Agenda
+### Agenda (Google)
 
-Basta colar o **link iCal secreto** da sua agenda. Não precisa de conta de desenvolvedor nem de login.
+Em *clique direito → Configurações → Agenda*, clique em **Entrar com Google** e autorize no navegador. O acesso é somente leitura (`calendar.readonly`) e lê só a agenda principal. Funciona com Gmail e com contas Google Workspace, desde que o administrador da empresa não bloqueie apps de terceiros.
 
-**Google Agenda:**
-1. Abra o [Google Agenda → Configurações](https://calendar.google.com/calendar/r/settings) no computador.
-2. Na esquerda, em **Configurações das minhas agendas**, clique na sua agenda.
-3. Em **Integrar agenda**, copie o **Endereço secreto no formato iCal** (tem `private-` no link). O *endereço público* só funciona se a agenda estiver pública e dá erro 404.
-4. Na ilha, abra *clique direito → Configurações → Agenda*, cole o link e clique em **Salvar**.
+<details>
+<summary>Para quem mantém ou empacota o projeto: as credenciais do app do Google</summary>
 
-**Outlook:** *Configurações → Calendário → Calendários compartilhados → Publicar um calendário*, copie o link ICS. **iCloud:** compartilhe a agenda como *Agenda pública* e copie o link (`webcal://` também funciona).
+O login usa um app OAuth do tipo **App para computador**. A ilha procura as credenciais, nesta ordem:
 
-O leitor de iCal é próprio e não usa nenhuma dependência. Ele entende eventos recorrentes (diários, semanais, mensais, anuais, com exceções e instâncias remarcadas ou canceladas), fusos horários e eventos de dia inteiro. Reuniões que você recusou não aparecem no Google. Mudanças na agenda podem levar alguns minutos para chegar, porque o link é atualizado pelo serviço de agenda.
+1. `~/.config/linux-island/google_client_secret.json`: um app próprio, se você quiser usar o seu.
+2. `google_client.json` na pasta do projeto: o app oficial do linux-island, distribuído junto com o código.
+
+Para criar o app:
+
+1. No [Google Cloud Console](https://console.cloud.google.com/), crie um projeto e ative a **Google Calendar API**.
+2. Em **Tela de consentimento OAuth**, escolha o tipo **Externo**, adicione o escopo `calendar.readonly` e **publique o app** ("Em produção"). Em modo de teste, só usuários cadastrados conseguem entrar, e o login expira a cada 7 dias.
+3. Em **Credenciais → Criar credenciais → ID do cliente OAuth → App para computador**, baixe o JSON.
+
+Enquanto o app não passar pela verificação do Google, quem entrar vê o aviso "O Google não verificou este app" e precisa clicar em *Avançado → Acessar*. O limite é de 100 usuários. Em apps de computador, o *client secret* não é sigiloso: o Google trata o cliente como público e a segurança vem do PKCE. Por isso ele pode ir junto com o código.
+
+</details>
 
 ### Substituir o relógio do COSMIC
 
@@ -166,9 +174,9 @@ EOF
 | `settings.py` | janela de configurações |
 | `views.py` | conteúdo dos modos compacto e expandido |
 | `pointer.py` | mouse: hover, clique, arrastar para trocar de página, rolagem e menu |
-| `agenda.py` | agenda: aviso de reunião e contagem regressiva (lógica pura) e a busca periódica do link iCal |
-| `ical.py` | leitor de iCalendar: eventos, fusos, recorrência, exceções e links de reunião |
-| `secret_store.py` | guarda segredos (o link da agenda) no chaveiro do sistema |
+| `agenda.py` | agenda: eventos normalizados, aviso de reunião e contagem regressiva (lógica pura) e a busca periódica |
+| `google_calendar.py` | Google Calendar: login OAuth de computador (PKCE) e leitura dos eventos |
+| `secret_store.py` | guarda segredos (o token do Google) no chaveiro do sistema |
 | `agenda_view.py` | página "Agenda" e o aviso de reunião na pílula |
 | `pages.py` | páginas da ilha expandida e prioridade do miolo da pílula |
 | `water.py` | lembrete de água: estado do dia, agenda e notificação |
@@ -196,7 +204,7 @@ Para depurar, rode com `ISLAND_DEBUG=1 ./run.sh` e acompanhe os eventos no termi
 - Para descobrir a cidade, o seu IP é enviado ao [ipwho.is](https://ipwho.is/), a não ser que você use `--city`. O resultado fica em cache por 6 horas em `~/.cache/linux-island/`.
 - As coordenadas são enviadas ao [Open-Meteo](https://open-meteo.com/) para buscar a previsão.
 - Se você conectar a Web API, o login é OAuth PKCE (sem segredo) e pede só permissão de leitura: `user-read-playback-state`, `playlist-read-private` e `playlist-read-collaborative`. O token fica em `~/.config/linux-island/spotify-token.json`, legível só pelo seu usuário. Para revogar, use **Desconectar** ou acesse [spotify.com/account/apps](https://www.spotify.com/account/apps/).
-- O link iCal da agenda fica no chaveiro do sistema (libsecret), ou num arquivo legível só pelo seu usuário quando não houver chaveiro. Ele nunca é registrado no log. Quem tem o link consegue ver a agenda, então trate-o como uma senha. No Google dá para gerar um novo em *Integrar agenda → Redefinir*. **Remover** apaga o link da ilha.
+- Se você entrar com o Google, o login é OAuth com PKCE e só permissão de leitura (`calendar.readonly`). O token fica no chaveiro do sistema (libsecret), ou num arquivo legível só pelo seu usuário quando não houver chaveiro. **Sair da conta** apaga o token e revoga o acesso no Google.
 - O contador de água fica só no seu computador, em `~/.local/state/linux-island/water.json`.
 - As capas são baixadas do CDN do Spotify e guardadas em `~/.cache/linux-island/art/`.
 
@@ -205,7 +213,7 @@ Para depurar, rode com `ISLAND_DEBUG=1 ./run.sh` e acompanhe os eventos no termi
 - [x] Menu de configurações (cores, temas, cidade, unidades, comportamento)
 - [x] Playlist e dispositivo em reprodução (Spotify Web API)
 - [x] Lembrete de beber água (configurável)
-- [x] Agenda (link iCal) com aviso de reunião
+- [x] Agenda do Google com aviso de reunião
 - [ ] Outros players MPRIS (Firefox, VLC, mpv…)
 - [ ] Notificações na ilha
 - [x] Volume (barra, mudo e rolagem do mouse)

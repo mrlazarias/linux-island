@@ -79,7 +79,7 @@ class AgendaPage(Gtk.Box):
         a = self.agenda
         if not a.connected:
             self.status.set_text("")
-            self._empty("Cole o link iCal da sua agenda para ver seus eventos.",
+            self._empty("Entre com sua conta do Google para ver seus eventos.",
                         pill_button("Configurar", "preferences-system-symbolic",
                                     self.open_settings, "water-snooze"))
         else:

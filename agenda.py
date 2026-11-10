@@ -1,32 +1,70 @@
-"""Agenda: aviso de reunião e contagem regressiva (lógica pura) e o controlador.
+"""Agenda: eventos normalizados, alerta de reunião (lógica pura) e o controlador.
 
-A fonte é o link iCal secreto da agenda (Google, Outlook, iCloud, Nextcloud…),
-guardado no chaveiro. Lógica pura recebe `now` (datetime com fuso) para ser
-testável com relógio fixo. O controlador baixa a cada 5 min e recalcula o
-aviso a cada 30 s pelo relógio de parede (funciona depois de suspender o PC).
+Lógica pura recebe `now` (datetime com fuso) para ser testável com relógio fixo.
+O controlador busca a cada 5 min e recalcula o alerta a cada 30 s pelo relógio
+de parede (funciona depois de suspender o PC).
 """
 import math
 import threading
 import urllib.error
-import urllib.request
 from datetime import datetime, timedelta
 
 from gi.repository import GLib
 
-import ical
-from secret_store import SecretStore
+from google_calendar import AuthError, GoogleCalendar
 
 POLL_S = 5 * 60
 TICK_S = 30
 GRACE = timedelta(minutes=5)  # o alerta continua um pouco depois do início
-MAX_BYTES = 8 * 1024 * 1024
+SKIP_TYPES = {"workingLocation"}
 DIAS = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
 
 
 # --- lógica pura -----------------------------------------------------------------
-def is_google_public(url):
-    """Endereço público do Google (…/public/basic.ics): só funciona se a agenda for pública."""
-    return "calendar.google.com/calendar/ical/" in url and "/public/" in url
+def _local(dt):
+    return dt.astimezone()
+
+
+def _parse_when(when, tz_now):
+    """(datetime com fuso, dia inteiro?) de um start/end da API."""
+    if "dateTime" in when:
+        return _local(datetime.fromisoformat(when["dateTime"])), False
+    d = datetime.fromisoformat(when["date"])
+    return d.replace(tzinfo=tz_now.tzinfo), True
+
+
+def _meet_link(item):
+    link = item.get("hangoutLink")
+    if not link:
+        for ep in (item.get("conferenceData") or {}).get("entryPoints") or []:
+            if ep.get("entryPointType") == "video":
+                link = ep.get("uri")
+                break
+    return link if isinstance(link, str) and link.startswith("https://") else None
+
+
+def normalize(items, now):
+    """Itens crus da API -> eventos ordenados, sem cancelados/recusados/local de trabalho."""
+    events = []
+    for it in items:
+        if it.get("status") == "cancelled" or it.get("eventType") in SKIP_TYPES:
+            continue
+        if any(a.get("self") and a.get("responseStatus") == "declined"
+               for a in it.get("attendees") or []):
+            continue
+        try:
+            start, all_day = _parse_when(it.get("start") or {}, now)
+            end, _ = _parse_when(it.get("end") or it.get("start") or {}, now)
+        except (KeyError, ValueError, TypeError):
+            continue
+        link = it.get("htmlLink")
+        events.append({
+            "id": it.get("id", ""), "title": (it.get("summary") or "(sem título)").strip(),
+            "start": start, "end": end, "all_day": all_day, "meet": _meet_link(it),
+            "html": link if isinstance(link, str) and link.startswith("https://") else None,
+        })
+    events.sort(key=lambda e: (e["start"], not e["all_day"]))
+    return events
 
 
 def alert_event(now, events, lead_min):
@@ -90,46 +128,49 @@ class Agenda:
         self.on_alert = on_alert
         self.on_status = on_status
         self.play_sound = play_sound
-        self.store = SecretStore("ical-url", "link da agenda")
-        self.url = self.store.load()
+        self.google = GoogleCalendar()
         self.events = []
         self.alert = None
         self._dismissed = set()
         self._sounded = set()
         self._busy = False
         self._poll_id = None
-        self.status = ("Carregando…", True) if self.url else ("Nenhuma agenda", False)
+        self.status = ("Conectado", True) if self.google.connected else ("Não conectado", False)
         GLib.timeout_add_seconds(TICK_S, lambda: self.tick() or True)
-        if self.url:
+        if self.google.connected:
             self._start_polling()
 
     @property
     def connected(self):
-        return bool(self.url)
+        return self.google.connected
 
     def _set_status(self, text, ok):
         self.status = (text, ok)
         self.on_status(text, ok)
 
-    # link
-    def set_url(self, url):
-        """Valida, guarda no chaveiro e começa a buscar. Devolve False se o link for inválido."""
-        url = ical.normalize_url(url)
-        if not url:
-            self._set_status("Link inválido: use o endereço https:// (ou webcal://)", False)
-            return False
-        self.store.save(url)
-        self.url = url
-        self._set_status("Carregando…", True)
+    # conexão
+    def login(self):
+        self._set_status("Aguardando login no navegador…", False)
+
+        def work():
+            try:
+                self.google.login()
+                GLib.idle_add(self._logged_in)
+            except (AuthError, urllib.error.URLError, OSError, ValueError, KeyError) as e:
+                GLib.idle_add(lambda: self._set_status(f"Falha no login: {e}", False) and False)
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _logged_in(self):
+        self._set_status("Conectado", True)
         self._start_polling()
-        return True
+        return False
 
     def disconnect(self):
-        self.store.clear()
-        self.url = None
+        self.google.disconnect()
         self._stop_polling()
         self.events = []
-        self._set_status("Nenhuma agenda", False)
+        self._set_status("Desconectado", False)
         self.on_change()
         self.tick()
 
@@ -145,53 +186,40 @@ class Agenda:
             self._poll_id = None
 
     def refresh(self):
-        if self._busy or not self.url or not self.cfg["agenda_enabled"]:
+        if self._busy or not self.google.connected or not self.cfg["agenda_enabled"]:
             return
         self._busy = True
-        url = self.url
         now = datetime.now().astimezone()
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         end = start + timedelta(days=self.cfg["agenda_days"])
 
         def work():
-            events, err = None, None
+            items, err = None, None
             try:
-                req = urllib.request.Request(url, headers={"User-Agent": "linux-island"})
-                with urllib.request.urlopen(req, timeout=20) as r:
-                    data = r.read(MAX_BYTES + 1)
-                if len(data) > MAX_BYTES:
-                    raise ValueError("agenda grande demais")
-                text = data.decode("utf-8", errors="replace")
-                if "BEGIN:VCALENDAR" not in text[:2000].upper():
-                    raise ValueError("o link não devolveu uma agenda iCal")
-                events = ical.events_between(text, start, end, ical.owner_from_url(url))
-            except urllib.error.HTTPError as e:
-                if e.code in (401, 403, 404) and is_google_public(url):
-                    err = ("esse é o endereço PÚBLICO, que só funciona com a agenda pública. "
-                           "Use o “Endereço secreto no formato iCal” (tem private- no link)")
-                else:
-                    err = f"o servidor respondeu {e.code}" + (
-                        " — o link foi trocado ou removido?" if e.code in (401, 403, 404) else "")
-            except (urllib.error.URLError, OSError) as e:
-                err = "sem conexão"  # mantém os eventos que já estavam na tela
-                print(f"[island] agenda indisponível: {getattr(e, 'reason', e)}")
-            except ValueError as e:
-                err = str(e)
-            GLib.idle_add(self._done, url, events, err)
+                items = self.google.fetch_events(start, end)
+            except AuthError as e:
+                err = ("auth", str(e))
+            except (urllib.error.URLError, OSError, ValueError) as e:
+                err = ("net", str(e))
+            GLib.idle_add(self._done, items, err)
 
         threading.Thread(target=work, daemon=True).start()
 
-    def _done(self, url, events, err):
+    def _done(self, items, err):
         self._busy = False
-        if url != self.url:  # trocaram o link no meio da busca
-            self.refresh()
-            return False
-        if events is not None:
-            self.events = events
-            n = sum(1 for e in events if e["end"] > datetime.now().astimezone())
-            self._set_status(f"Conectada · {n} evento{'s' if n != 1 else ''} pela frente", True)
+        if err and err[0] == "auth":
+            self._stop_polling()
+            self.events = []
+            if "credenciais" in err[1]:  # token guardado, mas o app não está configurado
+                self._set_status("Credenciais do app do Google não configuradas", False)
+            else:
+                self._set_status("Reconecte sua conta do Google", False)
         elif err:
-            self._set_status(f"Não deu para ler a agenda: {err}", False)
+            print(f"[island] agenda indisponível: {err[1]}")  # mantém o que já tinha
+        else:
+            self.events = normalize(items, datetime.now().astimezone())
+            if not self.status[1]:
+                self._set_status("Conectado", True)
         self.on_change()
         self.tick()
         return False
